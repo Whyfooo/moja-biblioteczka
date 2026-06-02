@@ -8,300 +8,140 @@
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f0c09;
-    --bg2: #1a1410;
-    --bg3: #241c14;
-    --wood-dark: #2a1f14;
-    --wood-mid: #3d2b1a;
-    --wood-light: #5c3d22;
-    --wood-edge: #6b4a28;
-    --gold: #c8a96e;
-    --gold-dim: #7a6040;
-    --text: #e8d4b8;
-    --text-dim: #9a7a5a;
-    --text-faint: #5a4a38;
-    --accent: #d4885a;
-    --read: #5a9a6a;
-    --unread: #4a4a4a;
+    --bg: #0f0c09; --bg2: #1a1410; --bg3: #241c14;
+    --wood-dark: #2a1f14; --wood-mid: #3d2b1a; --wood-light: #5c3d22; --wood-edge: #6b4a28;
+    --gold: #c8a96e; --gold-dim: #7a6040;
+    --text: #e8d4b8; --text-dim: #9a7a5a; --text-faint: #5a4a38;
+    --accent: #d4885a; --read: #5a9a6a; --unread: #4a4a4a;
     --border: rgba(200,169,110,0.12);
+    --shelf-w: 738px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Crimson Pro', Georgia, serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+  body { background: var(--bg); color: var(--text); font-family: 'Crimson Pro', Georgia, serif; min-height: 100vh; overflow-x: hidden; }
 
-  /* HEADER */
   header {
-    padding: 2rem 2rem 1rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
+    padding: 1.5rem 2rem 1rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
   }
-  .header-title {
-    font-size: 1.8rem;
-    font-weight: 600;
-    color: var(--gold);
-    letter-spacing: 0.02em;
-  }
+  .header-title { font-size: 1.8rem; font-weight: 600; color: var(--gold); letter-spacing: 0.02em; }
   .header-title span { color: var(--text-dim); font-weight: 400; font-size: 1rem; margin-left: 0.75rem; font-family: 'JetBrains Mono', monospace; }
   .header-actions { display: flex; gap: 0.75rem; align-items: center; }
   .btn {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    padding: 0.4rem 0.9rem;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.15s;
-    border: 1px solid var(--gold-dim);
-    background: transparent;
-    color: var(--gold);
-    letter-spacing: 0.05em;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; padding: 0.4rem 0.9rem;
+    border-radius: 3px; cursor: pointer; transition: all 0.15s;
+    border: 1px solid var(--gold-dim); background: transparent; color: var(--gold); letter-spacing: 0.05em;
   }
   .btn:hover { background: rgba(200,169,110,0.08); border-color: var(--gold); }
   .btn-accent { border-color: var(--accent); color: var(--accent); }
   .btn-accent:hover { background: rgba(212,136,90,0.08); }
-  #btn-logout { display: none; }
 
-  /* STATS */
-  .stats {
-    display: flex;
-    gap: 2rem;
-    padding: 1rem 2rem;
-    border-bottom: 1px solid var(--border);
-  }
+  .stats { display: flex; gap: 2rem; padding: 1rem 2rem; border-bottom: 1px solid var(--border); }
   .stat { text-align: left; }
   .stat-n { font-size: 1.4rem; font-weight: 600; color: var(--gold); font-family: 'JetBrains Mono', monospace; }
   .stat-l { font-size: 0.8rem; color: var(--text-dim); margin-top: 1px; }
 
-  /* FILTERS */
-  .filters {
-    padding: 0.75rem 2rem;
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--border);
-  }
+  .filters { padding: 0.75rem 2rem; display: flex; gap: 0.5rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
   .filter-btn {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-    padding: 0.3rem 0.7rem;
-    border-radius: 2px;
-    border: 1px solid var(--text-faint);
-    background: transparent;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.15s;
-    letter-spacing: 0.04em;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; padding: 0.3rem 0.7rem;
+    border-radius: 2px; border: 1px solid var(--text-faint); background: transparent;
+    color: var(--text-dim); cursor: pointer; transition: all 0.15s; letter-spacing: 0.04em;
   }
-  .filter-btn:hover, .filter-btn.active {
-    border-color: var(--gold-dim);
-    color: var(--gold);
-    background: rgba(200,169,110,0.06);
-  }
+  .filter-btn:hover, .filter-btn.active { border-color: var(--gold-dim); color: var(--gold); background: rgba(200,169,110,0.06); }
 
-  /* MAIN */
   main { padding: 1.5rem 2rem 4rem; }
   .bookcase-grid { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; overflow-x: auto; padding-bottom: 1rem; }
 
-  /* BOOKCASE */
   .bookcase {
-    background: var(--wood-dark);
-    border: 2px solid var(--wood-light);
-    border-radius: 4px;
-    padding: 10px;
-    width: 760px;
-    flex-shrink: 0;
+    background: var(--wood-dark); border: 2px solid var(--wood-light); border-radius: 4px;
+    padding: 10px; width: 760px; flex-shrink: 0;
     box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(200,169,110,0.05);
   }
-  .bookcase-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.65rem;
-    color: var(--gold-dim);
-    text-align: center;
-    margin-bottom: 6px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
+  .bookcase-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--gold-dim); text-align: center; margin-bottom: 6px; letter-spacing: 0.1em; text-transform: uppercase; }
+
   .shelf {
-    background: var(--wood-mid);
-    border-bottom: 9px solid var(--wood-light);
-    border-radius: 2px 2px 0 0;
-    padding: 4px 4px 0;
-    margin-bottom: 3px;
-    min-height: 145px;
-    display: flex;
-    align-items: flex-end;
-    gap: 1px;
-    position: relative;
+    background: var(--wood-mid); border-bottom: 9px solid var(--wood-light);
+    border-radius: 2px 2px 0 0; padding: 4px 4px 0; margin-bottom: 3px;
+    min-height: 145px; display: flex; align-items: flex-end; gap: 1px; position: relative;
   }
-  .shelf::after {
-    content: '';
-    position: absolute;
-    bottom: -7px;
-    left: 0;
-    right: 0;
-    height: 7px;
-    background: linear-gradient(to bottom, var(--wood-edge), var(--wood-light));
-  }
+  .shelf::after { content: ''; position: absolute; bottom: -9px; left: 0; right: 0; height: 9px; background: linear-gradient(to bottom, var(--wood-edge), var(--wood-light)); }
   .shelf-spacer { flex: 1; min-width: 4px; }
 
-  /* BOOKS */
-  .book {
-    height: 130px;
-    min-width: 7px;
-    border-radius: 1px 1px 0 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  /* DRAG & DROP — seria jako blok */
+  .series-block {
+    display: flex; align-items: flex-end; gap: 1px; flex-shrink: 0;
+    cursor: grab; border-radius: 1px;
+    transition: opacity 0.15s;
     position: relative;
-    transition: transform 0.12s ease;
-    flex-shrink: 0;
-    border-right: 1px solid rgba(0,0,0,0.3);
-    border-top: 1px solid rgba(255,255,255,0.08);
   }
-  .book:hover { transform: translateY(-8px); z-index: 20; }
+  .series-block:active { cursor: grabbing; }
+  .series-block.dragging { opacity: 0.35; }
+  .series-block.drag-over-left::before {
+    content: ''; position: absolute; left: -3px; top: 0; bottom: 0; width: 3px;
+    background: var(--accent); border-radius: 2px; z-index: 30;
+  }
+  .series-block.drag-over-right::after {
+    content: ''; position: absolute; right: -3px; top: 0; bottom: 0; width: 3px;
+    background: var(--accent); border-radius: 2px; z-index: 30;
+  }
+
+  .book {
+    height: 130px; min-width: 7px; border-radius: 1px 1px 0 0;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    position: relative; transition: transform 0.12s ease; flex-shrink: 0;
+    border-right: 1px solid rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .series-block:hover .book { transform: translateY(-5px); }
+  .book:hover { transform: translateY(-8px) !important; z-index: 20; }
   .book.unread-dim { opacity: 0.6; }
   .book-spine-text {
-    font-size: 9px;
-    font-family: 'JetBrains Mono', monospace;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
-    white-space: nowrap;
-    overflow: hidden;
-    max-height: 124px;
-    letter-spacing: 0.04em;
-    padding: 0 1px;
-    pointer-events: none;
+    font-size: 9px; font-family: 'JetBrains Mono', monospace;
+    writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg);
+    white-space: nowrap; overflow: hidden; max-height: 124px;
+    letter-spacing: 0.04em; padding: 0 1px; pointer-events: none;
   }
 
-  /* EMPTY SLOT (edit mode) */
-  .book-slot {
-    height: 40px;
-    min-width: 10px;
-    border: 1px dashed var(--text-faint);
-    border-radius: 1px;
-    cursor: pointer;
-    flex-shrink: 0;
-    opacity: 0.4;
-    transition: opacity 0.15s;
+  /* DROP ZONE między seriami */
+  .drop-zone {
+    width: 6px; min-height: 130px; flex-shrink: 0; border-radius: 2px;
+    transition: all 0.15s; opacity: 0;
   }
-  .book-slot:hover { opacity: 0.8; }
+  .drop-zone.active { opacity: 1; background: rgba(212,136,90,0.25); width: 12px; }
 
-  /* LOADING */
-  #loading {
-    text-align: center;
-    padding: 4rem;
-    color: var(--text-dim);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
-    letter-spacing: 0.05em;
+  /* EDIT BAR */
+  #edit-bar {
+    display: none; background: rgba(212,136,90,0.08); border-bottom: 1px solid rgba(212,136,90,0.2);
+    padding: 0.5rem 2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    color: var(--accent); letter-spacing: 0.04em; align-items: center; gap: 1rem;
   }
+  #edit-bar.active { display: flex; }
+
+  /* SAVING INDICATOR */
+  #save-indicator {
+    position: fixed; bottom: 1.25rem; right: 1.5rem;
+    background: var(--bg2); border: 1px solid var(--wood-light); border-radius: 4px;
+    padding: 0.5rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+    color: var(--text-dim); display: none; z-index: 200; transition: opacity 0.3s;
+  }
+
+  #loading { text-align: center; padding: 4rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; letter-spacing: 0.05em; }
 
   /* POPUP */
-  .popup-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.75);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-  }
+  .popup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
   .popup-overlay.active { display: flex; }
-  .popup {
-    background: var(--bg2);
-    border: 1px solid var(--wood-light);
-    border-radius: 8px;
-    padding: 0;
-    max-width: 520px;
-    width: 100%;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.9);
-    animation: popup-in 0.18s ease;
-    display: block;
-  }
+  .popup { background: var(--bg2); border: 1px solid var(--wood-light); border-radius: 8px; padding: 0; max-width: 520px; width: 100%; position: relative; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.9); animation: popup-in 0.18s ease; display: block; }
   @keyframes popup-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .popup-close {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.9rem;
-    background: rgba(0,0,0,0.4);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 50%;
-    color: var(--text-dim);
-    font-size: 1rem;
-    cursor: pointer;
-    line-height: 1;
-    transition: all 0.1s;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-  }
+  .popup-close { position: absolute; top: 0.75rem; right: 0.9rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; color: var(--text-dim); font-size: 1rem; cursor: pointer; line-height: 1; transition: all 0.1s; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; z-index: 10; }
   .popup-close:hover { color: var(--text); background: rgba(0,0,0,0.7); }
-  .popup-cover-wrap {
-    width: 100%;
-    height: 300px;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .popup-cover-bg {
-    position: absolute;
-    inset: 0;
-    filter: blur(18px) brightness(0.4);
-    background-size: cover;
-    background-position: center;
-    transform: scale(1.1);
-  }
-  .popup-cover {
-    width: 160px;
-    height: 240px;
-    border-radius: 3px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-family: 'JetBrains Mono', monospace;
-    text-align: center;
-    padding: 8px;
-    overflow: hidden;
-    border: 2px solid rgba(255,255,255,0.15);
-    position: relative;
-    z-index: 2;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  }
+  .popup-cover-wrap { width: 100%; height: 300px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .popup-cover-bg { position: absolute; inset: 0; filter: blur(18px) brightness(0.4); background-size: cover; background-position: center; transform: scale(1.1); }
+  .popup-cover { width: 160px; height: 240px; border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-family: 'JetBrains Mono', monospace; text-align: center; padding: 8px; overflow: hidden; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 2; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
   .popup-cover img { width: 100%; height: 100%; object-fit: cover; border-radius: 1px; }
-  .popup-info {
-    padding: 1.25rem 1.5rem 1.5rem;
-  }
+  .popup-info { padding: 1.25rem 1.5rem 1.5rem; }
   .popup-series { font-size: 1.25rem; font-weight: 600; color: var(--text); margin-bottom: 3px; line-height: 1.3; font-family: 'Crimson Pro', serif; }
   .popup-vol { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.9rem; }
   .popup-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
-  .tag {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.65rem;
-    padding: 3px 8px;
-    border-radius: 2px;
-    letter-spacing: 0.04em;
-  }
+  .tag { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; padding: 3px 8px; border-radius: 2px; letter-spacing: 0.04em; }
   .tag-manga { background: rgba(90,154,106,0.2); color: #88cc88; border: 1px solid rgba(90,154,106,0.3); }
   .tag-ln { background: rgba(90,110,180,0.2); color: #99aaee; border: 1px solid rgba(90,110,180,0.3); }
   .tag-manhwa { background: rgba(180,90,90,0.2); color: #ee9999; border: 1px solid rgba(180,90,90,0.3); }
@@ -314,85 +154,30 @@
   .popup-pub { font-size: 0.8rem; color: var(--text-faint); margin-top: 0.6rem; font-style: italic; }
 
   /* LOGIN MODAL */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.8);
-    z-index: 2000;
-    align-items: center;
-    justify-content: center;
-  }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; }
   .modal-overlay.active { display: flex; }
-  .modal {
-    background: var(--bg2);
-    border: 1px solid var(--wood-light);
-    border-radius: 6px;
-    padding: 2rem;
-    width: 300px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-  }
+  .modal { background: var(--bg2); border: 1px solid var(--wood-light); border-radius: 6px; padding: 2rem; width: 300px; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
   .modal h2 { font-size: 1.2rem; color: var(--gold); margin-bottom: 1.25rem; font-weight: 600; }
-  .modal input {
-    width: 100%;
-    background: var(--bg3);
-    border: 1px solid var(--wood-light);
-    border-radius: 3px;
-    padding: 0.6rem 0.8rem;
-    color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.8rem;
-    margin-bottom: 0.75rem;
-    outline: none;
-    transition: border-color 0.15s;
-  }
+  .modal input { width: 100%; background: var(--bg3); border: 1px solid var(--wood-light); border-radius: 3px; padding: 0.6rem 0.8rem; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin-bottom: 0.75rem; outline: none; transition: border-color 0.15s; }
   .modal input:focus { border-color: var(--gold-dim); }
   .modal-error { font-size: 0.78rem; color: var(--accent); margin-bottom: 0.75rem; display: none; font-family: 'JetBrains Mono', monospace; }
   .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
-
-  /* EDIT MODE INDICATOR */
-  #edit-bar {
-    display: none;
-    background: rgba(212,136,90,0.08);
-    border-bottom: 1px solid rgba(212,136,90,0.2);
-    padding: 0.5rem 2rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    color: var(--accent);
-    letter-spacing: 0.04em;
-    align-items: center;
-    gap: 1rem;
-  }
-  #edit-bar.active { display: flex; }
-  #edit-bar span { opacity: 0.7; }
-
-  /* RESPONSIVE */
-  @media (max-width: 768px) {
-    .bookcase { width: 100%; max-width: 760px; }
-    main { padding: 1rem; }
-    header { padding: 1rem; }
-    .stats { padding: 0.75rem 1rem; gap: 1.25rem; }
-    .filters { padding: 0.6rem 1rem; }
-  }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="header-title">
-    Biblioteczka
-    <span id="header-count">ładowanie...</span>
-  </div>
+  <div class="header-title">Biblioteczka <span id="header-count">ładowanie...</span></div>
   <div class="header-actions">
     <button class="btn" id="btn-login" onclick="showLogin()">Zaloguj</button>
     <button class="btn btn-accent" id="btn-admin" style="display:none" onclick="window.location.href='admin.html'">Panel admina</button>
-    <button class="btn" id="btn-logout" onclick="doLogout()">Wyloguj</button>
+    <button class="btn" id="btn-logout" style="display:none" onclick="doLogout()">Wyloguj</button>
   </div>
 </header>
 
 <div id="edit-bar">
   <span>● TRYB ADMINA</span>
-  <span>Kliknij tom aby edytować</span>
+  <span>Przeciągaj serie aby zmieniać kolejność — zapis automatyczny</span>
 </div>
 
 <div class="stats">
@@ -428,10 +213,7 @@
       <div class="popup-series" id="popup-series"></div>
       <div class="popup-vol" id="popup-vol"></div>
       <div class="popup-tags" id="popup-tags"></div>
-      <div class="popup-row">
-        <div class="status-dot" id="popup-dot"></div>
-        <span id="popup-status"></span>
-      </div>
+      <div class="popup-row"><div class="status-dot" id="popup-dot"></div><span id="popup-status"></span></div>
       <div class="popup-pub" id="popup-pub"></div>
     </div>
   </div>
@@ -451,10 +233,11 @@
   </div>
 </div>
 
-<!-- FIREBASE -->
+<div id="save-indicator">Zapisywanie...</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, updateDoc, doc, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -470,11 +253,17 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// ---- STATE ----
+const SHELF_W = 738;
+const CASES = 3;
+const SHELVES_PER_CASE = 6;
+
 let allSeries = [];
 let allVolumes = [];
+let seriesOrder = []; // tablica ID serii w aktualnej kolejności
 let currentFilter = 'all';
 let isAdmin = false;
+let dragSrcId = null;
+let saveTimeout = null;
 
 // ---- AUTH ----
 onAuthStateChanged(auth, user => {
@@ -483,30 +272,24 @@ onAuthStateChanged(auth, user => {
   document.getElementById('btn-logout').style.display = user ? '' : 'none';
   document.getElementById('btn-admin').style.display = user ? '' : 'none';
   document.getElementById('edit-bar').classList.toggle('active', !!user);
+  // przerender żeby włączyć/wyłączyć drag
+  if(allSeries.length) renderAll();
 });
 
 window.showLogin = () => document.getElementById('login-modal').classList.add('active');
 window.hideLogin = () => document.getElementById('login-modal').classList.remove('active');
-
 window.doLogin = async () => {
   const email = document.getElementById('login-email').value;
   const pass = document.getElementById('login-pass').value;
   const err = document.getElementById('login-error');
   err.style.display = 'none';
-  try {
-    await signInWithEmailAndPassword(auth, email, pass);
-    hideLogin();
-  } catch(e) {
-    err.style.display = 'block';
-  }
+  try { await signInWithEmailAndPassword(auth, email, pass); hideLogin(); }
+  catch(e) { err.style.display = 'block'; }
 };
-
 window.doLogout = () => signOut(auth);
-
-// Enter key on login
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') window.doLogin(); });
 
-// ---- LOAD DATA ----
+// ---- LOAD ----
 async function loadData() {
   try {
     const [seriesSnap, volsSnap] = await Promise.all([
@@ -515,51 +298,85 @@ async function loadData() {
     ]);
     allSeries = seriesSnap.docs.map(d => ({id:d.id,...d.data()}));
     allVolumes = volsSnap.docs.map(d => ({id:d.id,...d.data()}));
+    seriesOrder = allSeries.map(s => s.id);
     renderAll();
   } catch(e) {
-    document.getElementById('loading').textContent = 'Błąd ładowania danych. Sprawdź połączenie.';
+    document.getElementById('loading').textContent = 'Błąd ładowania. Sprawdź połączenie.';
     console.error(e);
   }
 }
 
 // ---- RENDER ----
-function renderAll() {
-  const volumes = currentFilter === 'all'
-    ? allVolumes
-    : allVolumes.filter(v => {
-        const s = allSeries.find(s=>s.id===v.seriesId);
-        if(!s) return false;
-        if(currentFilter==='PL'||currentFilter==='EN') return s.lang===currentFilter;
-        return s.type===currentFilter;
-      });
+function getFilteredSeriesIds() {
+  if(currentFilter === 'all') return new Set(allSeries.map(s=>s.id));
+  return new Set(allSeries.filter(s => {
+    if(currentFilter==='PL'||currentFilter==='EN') return s.lang===currentFilter;
+    return s.type===currentFilter;
+  }).map(s=>s.id));
+}
 
-  // Stats
-  const readCount = allVolumes.filter(v=>v.read).length;
-  const uniqueSeries = new Set(allVolumes.map(v=>v.seriesId)).size;
+function renderAll() {
+  const filteredIds = getFilteredSeriesIds();
+
+  // Stats (zawsze na całej kolekcji)
   document.getElementById('stat-total').textContent = allVolumes.length;
-  document.getElementById('stat-read').textContent = readCount;
-  document.getElementById('stat-series').textContent = uniqueSeries;
+  document.getElementById('stat-read').textContent = allVolumes.filter(v=>v.read).length;
+  document.getElementById('stat-series').textContent = allSeries.length;
   document.getElementById('header-count').textContent = allVolumes.length + ' tomów';
 
-  // Pack volumes into shelves (3 cases × 6 shelves, 314px each)
-  const SHELF_W = 738;
-  const CASES = 3;
-  const SHELVES_PER_CASE = 6;
-  const TOTAL_SHELVES = CASES * SHELVES_PER_CASE;
+  // Grupuj tomy per seria, zachowując kolejność seriesOrder
+  const volsBySeries = {};
+  allVolumes.forEach(v => {
+    if(!volsBySeries[v.seriesId]) volsBySeries[v.seriesId] = [];
+    volsBySeries[v.seriesId].push(v);
+  });
+  // Posortuj tomy w każdej serii
+  Object.values(volsBySeries).forEach(arr => arr.sort((a,b)=>a.volNumber-b.volNumber));
 
-  const shelves = Array.from({length: TOTAL_SHELVES}, () => ({items:[], usedW:0}));
+  // Pakuj serie na półki
+  const TOTAL_SHELVES = CASES * SHELVES_PER_CASE;
+  // Każda półka trzyma listę chunków: {sid, vols[]}
+  const shelves = Array.from({length: TOTAL_SHELVES}, () => ({chunks:[], usedW:0}));
   let si = 0;
-  volumes.forEach(v => {
-    const s = allSeries.find(s=>s.id===v.seriesId);
-    if(!s) return;
-    const w = v.width || (s.type==='light novel' ? 13 : 9);
+
+  seriesOrder.forEach(sid => {
+    if(!filteredIds.has(sid)) return;
     if(si >= TOTAL_SHELVES) return;
-    if(shelves[si].usedW + w > SHELF_W && si < TOTAL_SHELVES-1) { si++; }
-    shelves[si].items.push({v,s,w});
-    shelves[si].usedW += w + 1;
+    const s = allSeries.find(x=>x.id===sid);
+    const vols = volsBySeries[sid]||[];
+
+    let chunk = [];
+    let chunkW = 0;
+
+    vols.forEach(v => {
+      const w = (v.width||(s?.type==='light novel'?13:9)) + 1;
+      // Czy ten tom mieści się na obecnej półce w obecnym chunku?
+      if(shelves[si].usedW + chunkW + w > SHELF_W) {
+        // Zapisz dotychczasowy chunk na obecną półkę jeśli cokolwiek jest
+        if(chunk.length > 0) {
+          shelves[si].chunks.push({sid, vols: chunk});
+          shelves[si].usedW += chunkW;
+          chunk = []; chunkW = 0;
+        }
+        // Przejdź do następnej półki
+        if(si < TOTAL_SHELVES-1) si++;
+      }
+      chunk.push(v);
+      chunkW += w;
+    });
+
+    // Ostatni chunk
+    if(chunk.length > 0) {
+      // Czy zmieści się? Jeśli nie i seria nie jest jedyną na tej półce, przejdź dalej
+      if(shelves[si].usedW + chunkW > SHELF_W && shelves[si].usedW > 0 && si < TOTAL_SHELVES-1) {
+        si++;
+      }
+      shelves[si].chunks.push({sid, vols: chunk});
+      shelves[si].usedW += chunkW;
+    }
   });
 
-  // Render
+  // Render DOM
   document.getElementById('loading').style.display = 'none';
   const grid = document.getElementById('bookcase-grid');
   grid.style.display = 'flex';
@@ -569,25 +386,126 @@ function renderAll() {
     const bc = document.createElement('div');
     bc.className = 'bookcase';
     bc.innerHTML = `<div class="bookcase-label">Regał ${c+1}</div>`;
+
     for(let r=0; r<SHELVES_PER_CASE; r++) {
-      const si2 = c*SHELVES_PER_CASE + r;
+      const shelfIdx = c*SHELVES_PER_CASE + r;
       const shelf = document.createElement('div');
       shelf.className = 'shelf';
-      shelves[si2].items.forEach(({v,s,w}) => {
-        const el = document.createElement('div');
-        el.className = 'book' + (v.read?'':' unread-dim');
-        el.style.cssText = `width:${w}px;background:${s.spineColor};`;
-        el.innerHTML = `<span class="book-spine-text" style="color:${s.spineTextColor||'#fff'}">${s.shortName||s.name} ${v.volNumber}</span>`;
-        el.addEventListener('click', () => openPopup(v, s));
-        shelf.appendChild(el);
+      shelf.dataset.shelf = shelfIdx;
+
+      shelves[shelfIdx].chunks.forEach(({sid, vols}) => {
+        const s = allSeries.find(x=>x.id===sid);
+        if(!s) return;
+
+        const block = document.createElement('div');
+        block.className = 'series-block';
+        block.dataset.seriesId = sid;
+
+        if(isAdmin) {
+          block.draggable = true;
+          block.addEventListener('dragstart', onDragStart);
+          block.addEventListener('dragend', onDragEnd);
+          block.addEventListener('dragover', onDragOver);
+          block.addEventListener('dragleave', onDragLeave);
+          block.addEventListener('drop', onDrop);
+        }
+
+        vols.forEach(v => {
+          const w = v.width||(s.type==='light novel'?13:9);
+          const el = document.createElement('div');
+          el.className = 'book' + (v.read?'':' unread-dim');
+          el.style.cssText = `width:${w}px;background:${s.spineColor};`;
+          el.innerHTML = `<span class="book-spine-text" style="color:${s.spineTextColor||'#fff'}">${s.shortName||s.name} ${v.volNumber}</span>`;
+          el.addEventListener('click', e => { e.stopPropagation(); openPopup(v,s); });
+          block.appendChild(el);
+        });
+
+        shelf.appendChild(block);
       });
-      const sp = document.createElement('div');
-      sp.className = 'shelf-spacer';
-      shelf.appendChild(sp);
+
+      const sp = document.createElement('div'); sp.className = 'shelf-spacer'; shelf.appendChild(sp);
       bc.appendChild(shelf);
     }
     grid.appendChild(bc);
   }
+}
+
+// ---- DRAG & DROP ----
+function onDragStart(e) {
+  dragSrcId = this.dataset.seriesId;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragSrcId);
+}
+
+function onDragEnd(e) {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.series-block').forEach(b => {
+    b.classList.remove('drag-over-left','drag-over-right');
+  });
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if(this.dataset.seriesId === dragSrcId) return;
+  const rect = this.getBoundingClientRect();
+  const mid = rect.left + rect.width/2;
+  this.classList.remove('drag-over-left','drag-over-right');
+  this.classList.add(e.clientX < mid ? 'drag-over-left' : 'drag-over-right');
+}
+
+function onDragLeave(e) {
+  this.classList.remove('drag-over-left','drag-over-right');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  const targetId = this.dataset.seriesId;
+  if(!targetId || targetId === dragSrcId) return;
+
+  this.classList.remove('drag-over-left','drag-over-right');
+
+  const rect = this.getBoundingClientRect();
+  const insertAfter = e.clientX >= rect.left + rect.width/2;
+
+  const srcIdx = seriesOrder.indexOf(dragSrcId);
+  let tgtIdx = seriesOrder.indexOf(targetId);
+  if(srcIdx === -1 || tgtIdx === -1) return;
+
+  // Usuń źródło
+  seriesOrder.splice(srcIdx, 1);
+  // Przelicz target po usunięciu
+  tgtIdx = seriesOrder.indexOf(targetId);
+  const insertAt = insertAfter ? tgtIdx+1 : tgtIdx;
+  seriesOrder.splice(insertAt, 0, dragSrcId);
+
+  renderAll();
+  scheduleSave();
+}
+
+// ---- ZAPIS KOLEJNOŚCI ----
+function scheduleSave() {
+  const ind = document.getElementById('save-indicator');
+  ind.textContent = 'Zapisywanie...';
+  ind.style.display = 'block';
+  if(saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    try {
+      const batch = writeBatch(db);
+      seriesOrder.forEach((sid, idx) => {
+        batch.update(doc(db,'series',sid), {order: idx});
+      });
+      await batch.commit();
+      ind.textContent = 'Zapisano ✓';
+      ind.style.color = '#88cc88';
+      setTimeout(() => { ind.style.display='none'; ind.style.color=''; }, 2000);
+    } catch(err) {
+      ind.textContent = 'Błąd zapisu!';
+      ind.style.color = 'var(--accent)';
+      console.error(err);
+    }
+  }, 800);
 }
 
 // ---- POPUP ----
@@ -595,33 +513,28 @@ const typeTagClass = {manga:'tag-manga','light novel':'tag-ln',manhwa:'tag-manhw
 window.openPopup = function(v, s) {
   document.getElementById('popup-series').textContent = s.name;
   document.getElementById('popup-vol').textContent = `Tom ${v.volNumber}`;
-
-  const tags = document.getElementById('popup-tags');
   const tc = typeTagClass[s.type]||'tag-manga';
-  tags.innerHTML = `<span class="tag ${tc}">${s.type}</span><span class="tag tag-lang">${s.lang}</span>`;
-
-  document.getElementById('popup-dot').className = 'status-dot ' + (v.read?'dot-read':'dot-unread');
-  document.getElementById('popup-status').textContent = v.read ? 'Przeczytane' : 'Nieprzeczytane';
-  document.getElementById('popup-status').style.color = v.read ? 'var(--read)' : 'var(--text-dim)';
-  document.getElementById('popup-pub').textContent = s.publisher || '';
+  document.getElementById('popup-tags').innerHTML = `<span class="tag ${tc}">${s.type}</span><span class="tag tag-lang">${s.lang}</span>`;
+  document.getElementById('popup-dot').className = 'status-dot '+(v.read?'dot-read':'dot-unread');
+  document.getElementById('popup-status').textContent = v.read?'Przeczytane':'Nieprzeczytane';
+  document.getElementById('popup-status').style.color = v.read?'var(--read)':'var(--text-dim)';
+  document.getElementById('popup-pub').textContent = s.publisher||'';
 
   const cover = document.getElementById('popup-cover');
   const coverBg = document.getElementById('popup-cover-bg');
   const coverWrap = document.getElementById('popup-cover-wrap');
   coverWrap.style.background = s.spineColor;
   coverBg.style.background = s.spineColor;
-
   if(v.coverUrl) {
     cover.innerHTML = `<img src="${v.coverUrl}" alt="Okładka ${s.name} tom ${v.volNumber}">`;
     coverBg.style.backgroundImage = `url('${v.coverUrl}')`;
     coverBg.style.background = '';
   } else {
     cover.style.background = s.spineColor;
-    cover.style.color = s.spineTextColor || '#fff';
+    cover.style.color = s.spineTextColor||'#fff';
     cover.innerHTML = `<div style="font-size:9px;text-align:center;line-height:1.5">${s.name}<br><br>Tom ${v.volNumber}</div>`;
     coverBg.style.backgroundImage = '';
   }
-
   document.getElementById('popup-overlay').classList.add('active');
 };
 window.closePopup = () => document.getElementById('popup-overlay').classList.remove('active');
@@ -634,7 +547,6 @@ window.setFilter = function(f, btn) {
   renderAll();
 };
 
-// ---- INIT ----
 loadData();
 </script>
 </body>
