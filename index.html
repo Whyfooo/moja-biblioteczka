@@ -237,7 +237,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, updateDoc, doc, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -259,10 +259,12 @@ const SHELVES_PER_CASE = 6;
 
 let allSeries = [];
 let allVolumes = [];
-let seriesOrder = []; // tablica ID serii w aktualnej kolejności
+// orderByCases[c] = tablica ID serii przypisanych do regału c (0-indexed)
+let orderByCases = [[], [], []];
 let currentFilter = 'all';
 let isAdmin = false;
 let dragSrcId = null;
+let dragSrcCase = null;
 let saveTimeout = null;
 
 // ---- AUTH ----
@@ -272,7 +274,6 @@ onAuthStateChanged(auth, user => {
   document.getElementById('btn-logout').style.display = user ? '' : 'none';
   document.getElementById('btn-admin').style.display = user ? '' : 'none';
   document.getElementById('edit-bar').classList.toggle('active', !!user);
-  // przerender żeby włączyć/wyłączyć drag
   if(allSeries.length) renderAll();
 });
 
@@ -298,7 +299,27 @@ async function loadData() {
     ]);
     allSeries = seriesSnap.docs.map(d => ({id:d.id,...d.data()}));
     allVolumes = volsSnap.docs.map(d => ({id:d.id,...d.data()}));
-    seriesOrder = allSeries.map(s => s.id);
+
+    // Buduj orderByCases z pola bookcase każdej serii
+    // Jeśli seria nie ma bookcase (stare dane), rozdziel równomiernie
+    orderByCases = [[], [], []];
+    allSeries.forEach(s => {
+      const bc = (s.bookcase !== undefined && s.bookcase >= 0 && s.bookcase < CASES)
+        ? s.bookcase
+        : null;
+      if(bc !== null) {
+        orderByCases[bc].push(s.id);
+      }
+    });
+    // Serie bez bookcase — dorzuć do najmniej załadowanego regału
+    allSeries.forEach(s => {
+      if(s.bookcase === undefined || s.bookcase < 0 || s.bookcase >= CASES) {
+        const counts = orderByCases.map(arr => arr.length);
+        const minCase = counts.indexOf(Math.min(...counts));
+        orderByCases[minCase].push(s.id);
+      }
+    });
+
     renderAll();
   } catch(e) {
     document.getElementById('loading').textContent = 'Błąd ładowania. Sprawdź połączenie.';
@@ -318,65 +339,19 @@ function getFilteredSeriesIds() {
 function renderAll() {
   const filteredIds = getFilteredSeriesIds();
 
-  // Stats (zawsze na całej kolekcji)
   document.getElementById('stat-total').textContent = allVolumes.length;
   document.getElementById('stat-read').textContent = allVolumes.filter(v=>v.read).length;
   document.getElementById('stat-series').textContent = allSeries.length;
   document.getElementById('header-count').textContent = allVolumes.length + ' tomów';
 
-  // Grupuj tomy per seria, zachowując kolejność seriesOrder
+  // Grupuj tomy per seria
   const volsBySeries = {};
   allVolumes.forEach(v => {
     if(!volsBySeries[v.seriesId]) volsBySeries[v.seriesId] = [];
     volsBySeries[v.seriesId].push(v);
   });
-  // Posortuj tomy w każdej serii
   Object.values(volsBySeries).forEach(arr => arr.sort((a,b)=>a.volNumber-b.volNumber));
 
-  // Pakuj serie na półki
-  const TOTAL_SHELVES = CASES * SHELVES_PER_CASE;
-  // Każda półka trzyma listę chunków: {sid, vols[]}
-  const shelves = Array.from({length: TOTAL_SHELVES}, () => ({chunks:[], usedW:0}));
-  let si = 0;
-
-  seriesOrder.forEach(sid => {
-    if(!filteredIds.has(sid)) return;
-    if(si >= TOTAL_SHELVES) return;
-    const s = allSeries.find(x=>x.id===sid);
-    const vols = volsBySeries[sid]||[];
-
-    let chunk = [];
-    let chunkW = 0;
-
-    vols.forEach(v => {
-      const w = (v.width||(s?.type==='light novel'?13:9)) + 1;
-      // Czy ten tom mieści się na obecnej półce w obecnym chunku?
-      if(shelves[si].usedW + chunkW + w > SHELF_W) {
-        // Zapisz dotychczasowy chunk na obecną półkę jeśli cokolwiek jest
-        if(chunk.length > 0) {
-          shelves[si].chunks.push({sid, vols: chunk});
-          shelves[si].usedW += chunkW;
-          chunk = []; chunkW = 0;
-        }
-        // Przejdź do następnej półki
-        if(si < TOTAL_SHELVES-1) si++;
-      }
-      chunk.push(v);
-      chunkW += w;
-    });
-
-    // Ostatni chunk
-    if(chunk.length > 0) {
-      // Czy zmieści się? Jeśli nie i seria nie jest jedyną na tej półce, przejdź dalej
-      if(shelves[si].usedW + chunkW > SHELF_W && shelves[si].usedW > 0 && si < TOTAL_SHELVES-1) {
-        si++;
-      }
-      shelves[si].chunks.push({sid, vols: chunk});
-      shelves[si].usedW += chunkW;
-    }
-  });
-
-  // Render DOM
   document.getElementById('loading').style.display = 'none';
   const grid = document.getElementById('bookcase-grid');
   grid.style.display = 'flex';
@@ -385,21 +360,60 @@ function renderAll() {
   for(let c=0; c<CASES; c++) {
     const bc = document.createElement('div');
     bc.className = 'bookcase';
+    bc.dataset.case = c;
     bc.innerHTML = `<div class="bookcase-label">Regał ${c+1}</div>`;
 
+    // Pakuj serie tego regału na półki z zawijaniem
+    const caseSeriesIds = orderByCases[c].filter(sid => filteredIds.has(sid));
+    // shelves dla tego regału
+    const shelves = Array.from({length: SHELVES_PER_CASE}, () => ({chunks:[], usedW:0}));
+    let si = 0;
+
+    caseSeriesIds.forEach(sid => {
+      if(si >= SHELVES_PER_CASE) return;
+      const s = allSeries.find(x=>x.id===sid);
+      const vols = volsBySeries[sid]||[];
+      let chunk = [], chunkW = 0;
+
+      vols.forEach(v => {
+        const w = (v.width||(s?.type==='light novel'?13:9)) + 1;
+        if(shelves[si].usedW + chunkW + w > SHELF_W) {
+          if(chunk.length > 0) {
+            shelves[si].chunks.push({sid, vols:[...chunk]});
+            shelves[si].usedW += chunkW;
+            chunk = []; chunkW = 0;
+          }
+          if(si < SHELVES_PER_CASE-1) si++;
+        }
+        chunk.push(v); chunkW += w;
+      });
+
+      if(chunk.length > 0) {
+        if(shelves[si].usedW + chunkW > SHELF_W && shelves[si].usedW > 0 && si < SHELVES_PER_CASE-1) si++;
+        shelves[si].chunks.push({sid, vols:[...chunk]});
+        shelves[si].usedW += chunkW;
+      }
+    });
+
     for(let r=0; r<SHELVES_PER_CASE; r++) {
-      const shelfIdx = c*SHELVES_PER_CASE + r;
       const shelf = document.createElement('div');
       shelf.className = 'shelf';
-      shelf.dataset.shelf = shelfIdx;
+      shelf.dataset.shelfCase = c;
+      shelf.dataset.shelfRow = r;
 
-      shelves[shelfIdx].chunks.forEach(({sid, vols}) => {
+      // Drop zone na początku półki (tylko admin)
+      if(isAdmin) {
+        shelf.appendChild(makeShelfDropZone(c, null, 'before-first'));
+      }
+
+      shelves[r].chunks.forEach(({sid, vols}) => {
         const s = allSeries.find(x=>x.id===sid);
         if(!s) return;
 
         const block = document.createElement('div');
         block.className = 'series-block';
         block.dataset.seriesId = sid;
+        block.dataset.seriesCase = c;
 
         if(isAdmin) {
           block.draggable = true;
@@ -407,13 +421,13 @@ function renderAll() {
           block.addEventListener('dragend', onDragEnd);
           block.addEventListener('dragover', onDragOver);
           block.addEventListener('dragleave', onDragLeave);
-          block.addEventListener('drop', onDrop);
+          block.addEventListener('drop', onDropOnSeries);
         }
 
         vols.forEach(v => {
           const w = v.width||(s.type==='light novel'?13:9);
           const el = document.createElement('div');
-          el.className = 'book' + (v.read?'':' unread-dim');
+          el.className = 'book'+(v.read?'':' unread-dim');
           el.style.cssText = `width:${w}px;background:${s.spineColor};`;
           el.innerHTML = `<span class="book-spine-text" style="color:${s.spineTextColor||'#fff'}">${s.shortName||s.name} ${v.volNumber}</span>`;
           el.addEventListener('click', e => { e.stopPropagation(); openPopup(v,s); });
@@ -421,18 +435,43 @@ function renderAll() {
         });
 
         shelf.appendChild(block);
+
+        if(isAdmin) {
+          shelf.appendChild(makeShelfDropZone(c, sid, 'after'));
+        }
       });
 
       const sp = document.createElement('div'); sp.className = 'shelf-spacer'; shelf.appendChild(sp);
       bc.appendChild(shelf);
     }
+
+    // Drop zone na cały regał (puste miejsce) — obsługa dropa na pusty regał
+    if(isAdmin) {
+      bc.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; });
+      bc.addEventListener('drop', e => onDropOnCase(e, c));
+    }
+
     grid.appendChild(bc);
   }
+}
+
+// ---- DROP ZONES ----
+function makeShelfDropZone(caseIdx, afterSid, position) {
+  const dz = document.createElement('div');
+  dz.className = 'drop-zone';
+  dz.dataset.dzCase = caseIdx;
+  dz.dataset.dzAfter = afterSid || '';
+  dz.dataset.dzPos = position;
+  dz.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); dz.classList.add('active'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('active'));
+  dz.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('active'); performDrop(parseInt(dz.dataset.dzCase), dz.dataset.dzAfter||null, false); });
+  return dz;
 }
 
 // ---- DRAG & DROP ----
 function onDragStart(e) {
   dragSrcId = this.dataset.seriesId;
+  dragSrcCase = parseInt(this.dataset.seriesCase);
   this.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', dragSrcId);
@@ -440,69 +479,88 @@ function onDragStart(e) {
 
 function onDragEnd(e) {
   this.classList.remove('dragging');
-  document.querySelectorAll('.series-block').forEach(b => {
-    b.classList.remove('drag-over-left','drag-over-right');
-  });
+  document.querySelectorAll('.series-block').forEach(b => b.classList.remove('drag-over-left','drag-over-right'));
+  document.querySelectorAll('.drop-zone').forEach(dz => dz.classList.remove('active'));
 }
 
 function onDragOver(e) {
-  e.preventDefault();
+  e.preventDefault(); e.stopPropagation();
   e.dataTransfer.dropEffect = 'move';
   if(this.dataset.seriesId === dragSrcId) return;
   const rect = this.getBoundingClientRect();
-  const mid = rect.left + rect.width/2;
   this.classList.remove('drag-over-left','drag-over-right');
-  this.classList.add(e.clientX < mid ? 'drag-over-left' : 'drag-over-right');
+  this.classList.add(e.clientX < rect.left + rect.width/2 ? 'drag-over-left' : 'drag-over-right');
 }
 
 function onDragLeave(e) {
   this.classList.remove('drag-over-left','drag-over-right');
 }
 
-function onDrop(e) {
-  e.preventDefault();
+function onDropOnSeries(e) {
+  e.preventDefault(); e.stopPropagation();
   const targetId = this.dataset.seriesId;
+  const targetCase = parseInt(this.dataset.seriesCase);
   if(!targetId || targetId === dragSrcId) return;
-
   this.classList.remove('drag-over-left','drag-over-right');
-
   const rect = this.getBoundingClientRect();
   const insertAfter = e.clientX >= rect.left + rect.width/2;
+  performDrop(targetCase, insertAfter ? targetId : getPrevSiblingId(targetCase, targetId), false);
+}
 
-  const srcIdx = seriesOrder.indexOf(dragSrcId);
-  let tgtIdx = seriesOrder.indexOf(targetId);
-  if(srcIdx === -1 || tgtIdx === -1) return;
+function onDropOnCase(e, caseIdx) {
+  // Upuść na pusty obszar regału — dorzuć na koniec
+  if(e.target.closest('.series-block') || e.target.closest('.drop-zone')) return;
+  performDrop(caseIdx, null, true);
+}
 
-  // Usuń źródło
-  seriesOrder.splice(srcIdx, 1);
-  // Przelicz target po usunięciu
-  tgtIdx = seriesOrder.indexOf(targetId);
-  const insertAt = insertAfter ? tgtIdx+1 : tgtIdx;
-  seriesOrder.splice(insertAt, 0, dragSrcId);
+function getPrevSiblingId(caseIdx, sid) {
+  const arr = orderByCases[caseIdx];
+  const idx = arr.indexOf(sid);
+  return idx > 0 ? arr[idx-1] : null;
+}
 
+function performDrop(targetCase, afterSid, toEnd) {
+  if(!dragSrcId) return;
+
+  // Usuń z obecnego regału
+  const srcArr = orderByCases[dragSrcCase];
+  const srcIdx = srcArr.indexOf(dragSrcId);
+  if(srcIdx === -1) return;
+  srcArr.splice(srcIdx, 1);
+
+  // Wstaw do docelowego regału
+  const tgtArr = orderByCases[targetCase];
+  if(toEnd || afterSid === null) {
+    tgtArr.push(dragSrcId);
+  } else {
+    const afterIdx = tgtArr.indexOf(afterSid);
+    tgtArr.splice(afterIdx+1, 0, dragSrcId);
+  }
+
+  dragSrcId = null;
+  dragSrcCase = null;
   renderAll();
   scheduleSave();
 }
 
-// ---- ZAPIS KOLEJNOŚCI ----
+// ---- ZAPIS ----
 function scheduleSave() {
   const ind = document.getElementById('save-indicator');
-  ind.textContent = 'Zapisywanie...';
-  ind.style.display = 'block';
+  ind.textContent = 'Zapisywanie...'; ind.style.color = ''; ind.style.display = 'block';
   if(saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(async () => {
     try {
       const batch = writeBatch(db);
-      seriesOrder.forEach((sid, idx) => {
-        batch.update(doc(db,'series',sid), {order: idx});
+      orderByCases.forEach((arr, caseIdx) => {
+        arr.forEach((sid, idx) => {
+          batch.update(doc(db,'series',sid), {bookcase: caseIdx, order: idx});
+        });
       });
       await batch.commit();
-      ind.textContent = 'Zapisano ✓';
-      ind.style.color = '#88cc88';
+      ind.textContent = 'Zapisano ✓'; ind.style.color = '#88cc88';
       setTimeout(() => { ind.style.display='none'; ind.style.color=''; }, 2000);
     } catch(err) {
-      ind.textContent = 'Błąd zapisu!';
-      ind.style.color = 'var(--accent)';
+      ind.textContent = 'Błąd zapisu!'; ind.style.color = 'var(--accent)';
       console.error(err);
     }
   }, 800);
@@ -549,5 +607,3 @@ window.setFilter = function(f, btn) {
 
 loadData();
 </script>
-</body>
-</html>
