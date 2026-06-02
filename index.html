@@ -109,15 +109,15 @@
 
   /* MAIN */
   main { padding: 1.5rem 2rem 4rem; }
-  .bookcase-grid { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
+  .bookcase-grid { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; overflow-x: auto; padding-bottom: 1rem; }
 
   /* BOOKCASE */
   .bookcase {
     background: var(--wood-dark);
     border: 2px solid var(--wood-light);
     border-radius: 4px;
-    padding: 8px;
-    width: 340px;
+    padding: 10px;
+    width: 760px;
     flex-shrink: 0;
     box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(200,169,110,0.05);
   }
@@ -132,11 +132,11 @@
   }
   .shelf {
     background: var(--wood-mid);
-    border-bottom: 7px solid var(--wood-light);
+    border-bottom: 9px solid var(--wood-light);
     border-radius: 2px 2px 0 0;
-    padding: 3px 3px 0;
+    padding: 4px 4px 0;
     margin-bottom: 3px;
-    min-height: 46px;
+    min-height: 58px;
     display: flex;
     align-items: flex-end;
     gap: 1px;
@@ -155,7 +155,7 @@
 
   /* BOOKS */
   .book {
-    height: 40px;
+    height: 52px;
     min-width: 7px;
     border-radius: 1px 1px 0 0;
     cursor: pointer;
@@ -168,17 +168,17 @@
     border-right: 1px solid rgba(0,0,0,0.3);
     border-top: 1px solid rgba(255,255,255,0.08);
   }
-  .book:hover { transform: translateY(-5px); z-index: 20; }
+  .book:hover { transform: translateY(-6px); z-index: 20; }
   .book.unread-dim { opacity: 0.6; }
   .book-spine-text {
-    font-size: 6.5px;
+    font-size: 7.5px;
     font-family: 'JetBrains Mono', monospace;
     writing-mode: vertical-rl;
     text-orientation: mixed;
     transform: rotate(180deg);
     white-space: nowrap;
     overflow: hidden;
-    max-height: 36px;
+    max-height: 48px;
     letter-spacing: 0.03em;
     padding: 0 1px;
     pointer-events: none;
@@ -339,7 +339,7 @@
 
   /* RESPONSIVE */
   @media (max-width: 768px) {
-    .bookcase { width: 100%; max-width: 340px; }
+    .bookcase { width: 100%; max-width: 760px; }
     main { padding: 1rem; }
     header { padding: 1rem; }
     .stats { padding: 0.75rem 1rem; gap: 1.25rem; }
@@ -510,7 +510,7 @@ function renderAll() {
   document.getElementById('header-count').textContent = allVolumes.length + ' tomów';
 
   // Pack volumes into shelves (3 cases × 6 shelves, 314px each)
-  const SHELF_W = 314;
+  const SHELF_W = 738;
   const CASES = 3;
   const SHELVES_PER_CASE = 6;
   const TOTAL_SHELVES = CASES * SHELVES_PER_CASE;
