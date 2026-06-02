@@ -63,6 +63,8 @@
     background: var(--wood-mid); border-bottom: 9px solid var(--wood-light);
     border-radius: 2px 2px 0 0; padding: 4px 4px 0; margin-bottom: 3px;
     min-height: 145px; display: flex; align-items: flex-end; gap: 1px; position: relative;
+    overflow: hidden;
+    width: 100%;
   }
   .shelf::after { content: ''; position: absolute; bottom: -9px; left: 0; right: 0; height: 9px; background: linear-gradient(to bottom, var(--wood-edge), var(--wood-light)); }
   .shelf-spacer { flex: 1; min-width: 4px; }
@@ -253,7 +255,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-const SHELF_W = 738;
+const SHELF_W = 720;
 const CASES = 3;
 const SHELVES_PER_CASE = 6;
 
