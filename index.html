@@ -377,20 +377,23 @@ function renderAll() {
 
       vols.forEach(v => {
         const w = (v.width||(s?.type==='light novel'?13:9)) + 1;
+        // Czy ten tom (razem z dotychczasowym chunkW) nie mieści się na obecnej półce?
         if(shelves[si].usedW + chunkW + w > SHELF_W) {
+          // Zapisz dotychczasowy chunk
           if(chunk.length > 0) {
             shelves[si].chunks.push({sid, vols:[...chunk]});
             shelves[si].usedW += chunkW;
             chunk = []; chunkW = 0;
           }
-          if(si < SHELVES_PER_CASE-1) si++;
+          // Przejdź do następnej półki z wolnym miejscem na ten jeden tom
           while(si < SHELVES_PER_CASE-1 && shelves[si].usedW + w > SHELF_W) si++;
         }
         chunk.push(v); chunkW += w;
       });
 
       if(chunk.length > 0) {
-        if(shelves[si].usedW + chunkW > SHELF_W && shelves[si].usedW > 0 && si < SHELVES_PER_CASE-1) si++;
+        // Finalny chunk — jeśli nie mieści się i półka nie jest pusta, idź dalej
+        while(si < SHELVES_PER_CASE-1 && shelves[si].usedW + chunkW > SHELF_W && shelves[si].usedW > 0) si++;
         shelves[si].chunks.push({sid, vols:[...chunk]});
         shelves[si].usedW += chunkW;
       }
