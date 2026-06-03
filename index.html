@@ -384,6 +384,7 @@ function renderAll() {
             chunk = []; chunkW = 0;
           }
           if(si < SHELVES_PER_CASE-1) si++;
+          while(si < SHELVES_PER_CASE-1 && shelves[si].usedW + w > SHELF_W) si++;
         }
         chunk.push(v); chunkW += w;
       });
