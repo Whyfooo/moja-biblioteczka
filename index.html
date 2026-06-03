@@ -235,19 +235,6 @@
 </div>
 
 <!-- LOGIN MODAL -->
-<div class="modal-overlay" id="login-modal">
-  <div class="modal">
-    <h2>Logowanie</h2>
-    <input type="email" id="login-email" placeholder="Email" autocomplete="email">
-    <input type="password" id="login-pass" placeholder="Hasło" autocomplete="current-password">
-    <div class="modal-error" id="login-error">Nieprawidłowy email lub hasło.</div>
-    <div class="modal-actions">
-      <button class="btn" onclick="hideLogin()">Anuluj</button>
-      <button class="btn btn-accent" onclick="doLogin()">Wejdź</button>
-    </div>
-  </div>
-</div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -272,10 +259,10 @@ const SHELVES_PER_CASE = 6;
 
 let allSeries = [];
 let allVolumes = [];
-// placementByCases[c] = tablica {sid, shelfStart} w kolejności
-// shelfStart = numer półki (0-indexed) od której zaczyna się ta seria
-// null = pakuj za poprzednią serią automatycznie
-let placementByCases = [[], [], []];
+// orderByCases[c] = [{sid, shelfBreakBefore}]
+// shelfBreakBefore = true oznacza że ta seria zaczyna od nowej półki
+// (zostawia pustą miejsce po poprzedniej serii)
+let orderByCases = [[], [], []];
 let currentFilter = 'all';
 let isAdmin = false;
 let dragSrcId = null;
@@ -315,20 +302,17 @@ async function loadData() {
     allSeries = seriesSnap.docs.map(d => ({id:d.id,...d.data()}));
     allVolumes = volsSnap.docs.map(d => ({id:d.id,...d.data()}));
 
-    // Buduj placementByCases z pól bookcase / shelfStart
-    placementByCases = [[], [], []];
+    orderByCases = [[], [], []];
     allSeries.forEach(s => {
       const bc = (s.bookcase !== undefined && s.bookcase >= 0 && s.bookcase < CASES) ? s.bookcase : null;
       if(bc !== null) {
-        placementByCases[bc].push({sid: s.id, shelfStart: s.shelfStart ?? null});
+        orderByCases[bc].push({sid: s.id, shelfBreakBefore: s.shelfBreakBefore || false});
       }
     });
-    // Serie bez bookcase — rozdziel równomiernie
     allSeries.forEach(s => {
       if(s.bookcase === undefined || s.bookcase < 0 || s.bookcase >= CASES) {
-        const counts = placementByCases.map(arr => arr.length);
-        const minCase = counts.indexOf(Math.min(...counts));
-        placementByCases[minCase].push({sid: s.id, shelfStart: null});
+        const counts = orderByCases.map(arr => arr.length);
+        orderByCases[counts.indexOf(Math.min(...counts))].push({sid: s.id, shelfBreakBefore: false});
       }
     });
 
@@ -339,7 +323,7 @@ async function loadData() {
   }
 }
 
-// ---- RENDER ----
+// ---- HELPERS ----
 function getFilteredSeriesIds() {
   if(currentFilter === 'all') return new Set(allSeries.map(s=>s.id));
   return new Set(allSeries.filter(s => {
@@ -349,9 +333,10 @@ function getFilteredSeriesIds() {
 }
 
 function volWidth(v, s) {
-  return (v.width || (s?.type==='light novel' ? 13 : 9));
+  return v.width || (s?.type==='light novel' ? 13 : 9);
 }
 
+// ---- RENDER ----
 function renderAll() {
   const filteredIds = getFilteredSeriesIds();
 
@@ -378,35 +363,24 @@ function renderAll() {
     bc.dataset.case = c;
     bc.innerHTML = `<div class="bookcase-label">Regał ${c+1}</div>`;
 
-    // Buduj shelves dla tego regału
-    // shelves[r] = [{sid, vols[]}]  (chunki serii)
+    // Buduj shelves — shelves[r] = {chunks:[{sid,vols[]}], usedW}
     const shelves = Array.from({length: SHELVES_PER_CASE}, () => ({chunks:[], usedW:0}));
+    let si = 0;
 
-    const casePlacements = placementByCases[c].filter(p => filteredIds.has(p.sid));
+    const casePlacements = orderByCases[c].filter(p => filteredIds.has(p.sid));
 
-    casePlacements.forEach(({sid, shelfStart}) => {
+    casePlacements.forEach(({sid, shelfBreakBefore}) => {
       const s = allSeries.find(x=>x.id===sid);
       const vols = volsBySeries[sid]||[];
+      if(!vols.length && !shelfBreakBefore) return;
+
+      // Jeśli shelfBreakBefore — przejdź do następnej półki (zostaw bieżącą z resztą miejsca)
+      if(shelfBreakBefore && shelves[si].usedW > 0 && si < SHELVES_PER_CASE-1) {
+        si++;
+      }
+
       if(!vols.length) return;
 
-      // Gdzie zaczynamy pakować tę serię
-      // Jeśli shelfStart jest ustawiony i półka jest wolna (lub seria jest pierwsza na tej półce) — zaczynamy tam
-      // Jeśli shelfStart jest ustawiony ale minęliśmy już tę półkę — zaczynamy od bieżącej
-      let si;
-      if(shelfStart !== null && shelfStart < SHELVES_PER_CASE) {
-        // Sprawdź czy możemy zacząć od shelfStart
-        // Znajdź pierwszy wolny slot >= shelfStart
-        si = shelfStart;
-        // Jeśli poprzednia seria skończyła się za shelfStart, zaczniemy tam gdzie skończyła
-        const prevSi = getPrevEndShelf(shelves, shelfStart);
-        if(prevSi > shelfStart) si = prevSi;
-      } else {
-        // Automatycznie — pierwsza wolna półka
-        si = getFirstAvailableShelf(shelves);
-      }
-      if(si >= SHELVES_PER_CASE) return;
-
-      // Pakuj tomy tej serii od si, zawijając
       let chunk = [], chunkW = 0;
       vols.forEach(v => {
         const w = volWidth(v, s) + 1;
@@ -436,7 +410,6 @@ function renderAll() {
 
       const isEmpty = shelves[r].chunks.length === 0;
 
-      // Pusta półka jako drop zone (admin)
       if(isAdmin && isEmpty) {
         shelf.classList.add('shelf-empty');
         shelf.addEventListener('dragover', e => { e.preventDefault(); shelf.classList.add('shelf-drop-active'); });
@@ -444,7 +417,7 @@ function renderAll() {
         shelf.addEventListener('drop', e => {
           e.preventDefault(); e.stopPropagation();
           shelf.classList.remove('shelf-drop-active');
-          performDropToShelf(c, r);
+          performDropToEmptyShelf(c, r);
         });
       }
 
@@ -492,23 +465,7 @@ function renderAll() {
   }
 }
 
-// helper: znajdź pierwszą półkę z wolnym miejscem lub pustą
-function getFirstAvailableShelf(shelves) {
-  for(let i=0; i<shelves.length; i++) {
-    if(shelves[i].usedW < SHELF_W) return i;
-  }
-  return shelves.length-1;
-}
-
-// helper: gdzie skończyła poprzednia seria (pierwsza półka z usedW > 0 od shelfStart wstecz)
-function getPrevEndShelf(shelves, from) {
-  for(let i=from; i>=0; i--) {
-    if(shelves[i].usedW > 0) return i;
-  }
-  return from;
-}
-
-// ---- DROP ZONES między seriami ----
+// ---- DROP ZONES ----
 function makeDropZone(caseIdx, afterSid) {
   const dz = document.createElement('div');
   dz.className = 'drop-zone';
@@ -561,40 +518,41 @@ function onDropOnSeries(e) {
 }
 
 function getPrevSiblingId(caseIdx, sid) {
-  const arr = placementByCases[caseIdx];
+  const arr = orderByCases[caseIdx];
   const idx = arr.findIndex(p=>p.sid===sid);
   return idx > 0 ? arr[idx-1].sid : null;
 }
 
-// Upuść na pustą półkę — przypisz shelfStart
-function performDropToShelf(targetCase, targetRow) {
+// Upuść na pustą półkę — wstaw serię z shelfBreakBefore=true
+// Znajdź pierwszą serię po tej półce i wstaw przed nią z flagą
+function performDropToEmptyShelf(targetCase, targetRow) {
   if(!dragSrcId) return;
 
   // Usuń z obecnego regału
-  const srcArr = placementByCases[dragSrcCase];
+  const srcArr = orderByCases[dragSrcCase];
   const srcIdx = srcArr.findIndex(p=>p.sid===dragSrcId);
   if(srcIdx === -1) return;
   srcArr.splice(srcIdx, 1);
 
-  // Wstaw do docelowego regału z shelfStart
-  placementByCases[targetCase].push({sid: dragSrcId, shelfStart: targetRow});
+  // Wstaw na koniec docelowego regału z shelfBreakBefore=true
+  // System przy renderowaniu przeskoczy do nowej półki przed tą serią
+  orderByCases[targetCase].push({sid: dragSrcId, shelfBreakBefore: true});
 
   dragSrcId = null; dragSrcCase = null;
   renderAll();
   scheduleSave();
 }
 
-// Upuść na serię lub drop zone — bez konkretnej półki
 function performDrop(targetCase, afterSid, toEnd) {
   if(!dragSrcId) return;
 
-  const srcArr = placementByCases[dragSrcCase];
+  const srcArr = orderByCases[dragSrcCase];
   const srcIdx = srcArr.findIndex(p=>p.sid===dragSrcId);
   if(srcIdx === -1) return;
   const [dragged] = srcArr.splice(srcIdx, 1);
-  dragged.shelfStart = null; // resetuj shelfStart — pakuj za poprzednią serią
+  dragged.shelfBreakBefore = false;
 
-  const tgtArr = placementByCases[targetCase];
+  const tgtArr = orderByCases[targetCase];
   if(toEnd || afterSid === null) {
     tgtArr.push(dragged);
   } else {
@@ -615,12 +573,12 @@ function scheduleSave() {
   saveTimeout = setTimeout(async () => {
     try {
       const batch = writeBatch(db);
-      placementByCases.forEach((arr, caseIdx) => {
-        arr.forEach(({sid, shelfStart}, idx) => {
+      orderByCases.forEach((arr, caseIdx) => {
+        arr.forEach(({sid, shelfBreakBefore}, idx) => {
           batch.update(doc(db,'series',sid), {
             bookcase: caseIdx,
             order: idx,
-            shelfStart: shelfStart ?? null
+            shelfBreakBefore: shelfBreakBefore || false
           });
         });
       });
@@ -663,6 +621,17 @@ window.openPopup = function(v, s) {
   document.getElementById('popup-overlay').classList.add('active');
 };
 window.closePopup = () => document.getElementById('popup-overlay').classList.remove('active');
+
+// ---- FILTERS ----
+window.setFilter = function(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+};
+
+loadData();
+</script>
 
 // ---- FILTERS ----
 window.setFilter = function(f, btn) {
