@@ -369,9 +369,6 @@ function renderAll() {
     // Pakuj serie tego regału na półki z zawijaniem
     const caseSeriesIds = orderByCases[c].filter(sid => filteredIds.has(sid));
     // shelves dla tego regału
-    const shelves = Array.from({length: SHELVES_PER_CASE}, () => ({chunks:[], usedW:0}));
-    let si = 0;
-
     // Pakowanie: każdy tom osobno, sztywny limit SHELF_W
     // usedW[r] = ile px zajęte na półce r
     const usedW = new Array(SHELVES_PER_CASE).fill(0);
