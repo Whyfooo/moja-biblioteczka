@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Moja Biblioteczka</title>
-<!-- WERSJA 1.5 - nowa logika pakowania per-tom -->
+<!-- WERSJA 1.6 - sztywny limit półki -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -41,6 +41,7 @@
   .stat { text-align: left; }
   .stat-n { font-size: 1.4rem; font-weight: 600; color: var(--gold); font-family: 'JetBrains Mono', monospace; }
   .stat-l { font-size: 0.8rem; color: var(--text-dim); margin-top: 1px; }
+  .version-tag { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--text-faint); padding: 0.25rem 2rem; border-bottom: 1px solid var(--border); letter-spacing: 0.06em; }
 
   .filters { padding: 0.75rem 2rem; display: flex; gap: 0.5rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
   .filter-btn {
@@ -187,6 +188,7 @@
   <div class="stat"><div class="stat-n" id="stat-series">–</div><div class="stat-l">serii</div></div>
 </div>
 
+<div class="version-tag">v1.6</div>
 <div class="filters">
   <button class="filter-btn active" onclick="setFilter('all',this)">Wszystkie</button>
   <button class="filter-btn" onclick="setFilter('manga',this)">Manga</button>
@@ -370,29 +372,43 @@ function renderAll() {
     const shelves = Array.from({length: SHELVES_PER_CASE}, () => ({chunks:[], usedW:0}));
     let si = 0;
 
+    // Pakowanie: każdy tom osobno, sztywny limit SHELF_W
+    // usedW[r] = ile px zajęte na półce r
+    const usedW = new Array(SHELVES_PER_CASE).fill(0);
+    // chunks[r] = [{sid, vols[]}]
+    const shelfChunks = Array.from({length: SHELVES_PER_CASE}, () => []);
+
+    let si = 0;
     caseSeriesIds.forEach(sid => {
       const s = allSeries.find(x=>x.id===sid);
       const vols = volsBySeries[sid]||[];
       if(!vols.length) return;
 
-      // Pakuj tomy jeden po jednym — każdy tom trafia na właściwą półkę
       vols.forEach(v => {
         const w = (v.width||(s?.type==='light novel'?13:9)) + 1;
 
-        // Znajdź półkę gdzie ten tom się mieści
-        while(si < SHELVES_PER_CASE - 1 && shelves[si].usedW + w > SHELF_W) si++;
-
-        // Dodaj tom do obecnej półki — scalaj z poprzednim chunkiem tej samej serii jeśli możliwe
-        const shelfChunks = shelves[si].chunks;
-        const lastChunk = shelfChunks.length > 0 ? shelfChunks[shelfChunks.length-1] : null;
-        if(lastChunk && lastChunk.sid === sid) {
-          lastChunk.vols.push(v);
-        } else {
-          shelfChunks.push({sid, vols:[v]});
+        // Jeśli ten tom nie mieści się na obecnej półce — przejdź do następnej
+        if(usedW[si] + w > SHELF_W) {
+          if(si < SHELVES_PER_CASE - 1) si++;
         }
-        shelves[si].usedW += w;
+
+        // Dodaj tom — scal z ostatnim chunkiem tej serii na tej półce
+        const chunks = shelfChunks[si];
+        const last = chunks.length > 0 ? chunks[chunks.length - 1] : null;
+        if(last && last.sid === sid) {
+          last.vols.push(v);
+        } else {
+          chunks.push({sid, vols: [v]});
+        }
+        usedW[si] += w;
       });
     });
+
+    // Przepisz do shelves żeby reszta kodu działała
+    for(let r = 0; r < SHELVES_PER_CASE; r++) {
+      shelves[r].chunks = shelfChunks[r];
+      shelves[r].usedW = usedW[r];
+    }
 
     for(let r=0; r<SHELVES_PER_CASE; r++) {
       const shelf = document.createElement('div');
