@@ -63,8 +63,6 @@
     background: var(--wood-mid); border-bottom: 9px solid var(--wood-light);
     border-radius: 2px 2px 0 0; padding: 4px 4px 0; margin-bottom: 3px;
     min-height: 145px; display: flex; align-items: flex-end; gap: 1px; position: relative;
-    overflow: hidden;
-    width: 100%;
   }
   .shelf::after { content: ''; position: absolute; bottom: -9px; left: 0; right: 0; height: 9px; background: linear-gradient(to bottom, var(--wood-edge), var(--wood-light)); }
   .shelf-spacer { flex: 1; min-width: 4px; }
@@ -101,19 +99,6 @@
     writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg);
     white-space: nowrap; overflow: hidden; max-height: 124px;
     letter-spacing: 0.04em; padding: 0 1px; pointer-events: none;
-  }
-
-  /* PUSTA PÓŁKA jako drop zone */
-  .shelf-empty {
-    border: 1px dashed var(--text-faint);
-    opacity: 0.5;
-    transition: all 0.15s;
-    cursor: default;
-  }
-  .shelf-empty.shelf-drop-active {
-    border-color: var(--accent);
-    background: rgba(212,136,90,0.08);
-    opacity: 1;
   }
 
   /* DROP ZONE między seriami */
@@ -235,6 +220,21 @@
 </div>
 
 <!-- LOGIN MODAL -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal">
+    <h2>Logowanie</h2>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="email">
+    <input type="password" id="login-pass" placeholder="Hasło" autocomplete="current-password">
+    <div class="modal-error" id="login-error">Nieprawidłowy email lub hasło.</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideLogin()">Anuluj</button>
+      <button class="btn btn-accent" onclick="doLogin()">Wejdź</button>
+    </div>
+  </div>
+</div>
+
+<div id="save-indicator">Zapisywanie...</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -253,15 +253,13 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-const SHELF_W = 720;
+const SHELF_W = 738;
 const CASES = 3;
 const SHELVES_PER_CASE = 6;
 
 let allSeries = [];
 let allVolumes = [];
-// orderByCases[c] = [{sid, shelfBreakBefore}]
-// shelfBreakBefore = true oznacza że ta seria zaczyna od nowej półki
-// (zostawia pustą miejsce po poprzedniej serii)
+// orderByCases[c] = tablica ID serii przypisanych do regału c (0-indexed)
 let orderByCases = [[], [], []];
 let currentFilter = 'all';
 let isAdmin = false;
@@ -302,17 +300,23 @@ async function loadData() {
     allSeries = seriesSnap.docs.map(d => ({id:d.id,...d.data()}));
     allVolumes = volsSnap.docs.map(d => ({id:d.id,...d.data()}));
 
+    // Buduj orderByCases z pola bookcase każdej serii
+    // Jeśli seria nie ma bookcase (stare dane), rozdziel równomiernie
     orderByCases = [[], [], []];
     allSeries.forEach(s => {
-      const bc = (s.bookcase !== undefined && s.bookcase >= 0 && s.bookcase < CASES) ? s.bookcase : null;
+      const bc = (s.bookcase !== undefined && s.bookcase >= 0 && s.bookcase < CASES)
+        ? s.bookcase
+        : null;
       if(bc !== null) {
-        orderByCases[bc].push({sid: s.id, shelfBreakBefore: s.shelfBreakBefore || false});
+        orderByCases[bc].push(s.id);
       }
     });
+    // Serie bez bookcase — dorzuć do najmniej załadowanego regału
     allSeries.forEach(s => {
       if(s.bookcase === undefined || s.bookcase < 0 || s.bookcase >= CASES) {
         const counts = orderByCases.map(arr => arr.length);
-        orderByCases[counts.indexOf(Math.min(...counts))].push({sid: s.id, shelfBreakBefore: false});
+        const minCase = counts.indexOf(Math.min(...counts));
+        orderByCases[minCase].push(s.id);
       }
     });
 
@@ -323,7 +327,7 @@ async function loadData() {
   }
 }
 
-// ---- HELPERS ----
+// ---- RENDER ----
 function getFilteredSeriesIds() {
   if(currentFilter === 'all') return new Set(allSeries.map(s=>s.id));
   return new Set(allSeries.filter(s => {
@@ -332,11 +336,6 @@ function getFilteredSeriesIds() {
   }).map(s=>s.id));
 }
 
-function volWidth(v, s) {
-  return v.width || (s?.type==='light novel' ? 13 : 9);
-}
-
-// ---- RENDER ----
 function renderAll() {
   const filteredIds = getFilteredSeriesIds();
 
@@ -345,12 +344,13 @@ function renderAll() {
   document.getElementById('stat-series').textContent = allSeries.length;
   document.getElementById('header-count').textContent = allVolumes.length + ' tomów';
 
+  // Grupuj tomy per seria
   const volsBySeries = {};
   allVolumes.forEach(v => {
     if(!volsBySeries[v.seriesId]) volsBySeries[v.seriesId] = [];
     volsBySeries[v.seriesId].push(v);
   });
-  Object.values(volsBySeries).forEach(arr => arr.sort((a,b) => a.volNumber - b.volNumber));
+  Object.values(volsBySeries).forEach(arr => arr.sort((a,b)=>a.volNumber-b.volNumber));
 
   document.getElementById('loading').style.display = 'none';
   const grid = document.getElementById('bookcase-grid');
@@ -363,27 +363,20 @@ function renderAll() {
     bc.dataset.case = c;
     bc.innerHTML = `<div class="bookcase-label">Regał ${c+1}</div>`;
 
-    // Buduj shelves — shelves[r] = {chunks:[{sid,vols[]}], usedW}
+    // Pakuj serie tego regału na półki z zawijaniem
+    const caseSeriesIds = orderByCases[c].filter(sid => filteredIds.has(sid));
+    // shelves dla tego regału
     const shelves = Array.from({length: SHELVES_PER_CASE}, () => ({chunks:[], usedW:0}));
     let si = 0;
 
-    const casePlacements = orderByCases[c].filter(p => filteredIds.has(p.sid));
-
-    casePlacements.forEach(({sid, shelfBreakBefore}) => {
+    caseSeriesIds.forEach(sid => {
+      if(si >= SHELVES_PER_CASE) return;
       const s = allSeries.find(x=>x.id===sid);
       const vols = volsBySeries[sid]||[];
-      if(!vols.length && !shelfBreakBefore) return;
-
-      // Jeśli shelfBreakBefore — przejdź do następnej półki (zostaw bieżącą z resztą miejsca)
-      if(shelfBreakBefore && shelves[si].usedW > 0 && si < SHELVES_PER_CASE-1) {
-        si++;
-      }
-
-      if(!vols.length) return;
-
       let chunk = [], chunkW = 0;
+
       vols.forEach(v => {
-        const w = volWidth(v, s) + 1;
+        const w = (v.width||(s?.type==='light novel'?13:9)) + 1;
         if(shelves[si].usedW + chunkW + w > SHELF_W) {
           if(chunk.length > 0) {
             shelves[si].chunks.push({sid, vols:[...chunk]});
@@ -394,6 +387,7 @@ function renderAll() {
         }
         chunk.push(v); chunkW += w;
       });
+
       if(chunk.length > 0) {
         if(shelves[si].usedW + chunkW > SHELF_W && shelves[si].usedW > 0 && si < SHELVES_PER_CASE-1) si++;
         shelves[si].chunks.push({sid, vols:[...chunk]});
@@ -401,28 +395,15 @@ function renderAll() {
       }
     });
 
-    // Render półek
     for(let r=0; r<SHELVES_PER_CASE; r++) {
       const shelf = document.createElement('div');
       shelf.className = 'shelf';
       shelf.dataset.shelfCase = c;
       shelf.dataset.shelfRow = r;
 
-      const isEmpty = shelves[r].chunks.length === 0;
-
-      if(isAdmin && isEmpty) {
-        shelf.classList.add('shelf-empty');
-        shelf.addEventListener('dragover', e => { e.preventDefault(); shelf.classList.add('shelf-drop-active'); });
-        shelf.addEventListener('dragleave', () => shelf.classList.remove('shelf-drop-active'));
-        shelf.addEventListener('drop', e => {
-          e.preventDefault(); e.stopPropagation();
-          shelf.classList.remove('shelf-drop-active');
-          performDropToEmptyShelf(c, r);
-        });
-      }
-
-      if(isAdmin && !isEmpty) {
-        shelf.appendChild(makeDropZone(c, null));
+      // Drop zone na początku półki (tylko admin)
+      if(isAdmin) {
+        shelf.appendChild(makeShelfDropZone(c, null, 'before-first'));
       }
 
       shelves[r].chunks.forEach(({sid, vols}) => {
@@ -444,7 +425,7 @@ function renderAll() {
         }
 
         vols.forEach(v => {
-          const w = volWidth(v, s);
+          const w = v.width||(s.type==='light novel'?13:9);
           const el = document.createElement('div');
           el.className = 'book'+(v.read?'':' unread-dim');
           el.style.cssText = `width:${w}px;background:${s.spineColor};`;
@@ -454,11 +435,20 @@ function renderAll() {
         });
 
         shelf.appendChild(block);
-        if(isAdmin) shelf.appendChild(makeDropZone(c, sid));
+
+        if(isAdmin) {
+          shelf.appendChild(makeShelfDropZone(c, sid, 'after'));
+        }
       });
 
       const sp = document.createElement('div'); sp.className = 'shelf-spacer'; shelf.appendChild(sp);
       bc.appendChild(shelf);
+    }
+
+    // Drop zone na cały regał (puste miejsce) — obsługa dropa na pusty regał
+    if(isAdmin) {
+      bc.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; });
+      bc.addEventListener('drop', e => onDropOnCase(e, c));
     }
 
     grid.appendChild(bc);
@@ -466,20 +456,19 @@ function renderAll() {
 }
 
 // ---- DROP ZONES ----
-function makeDropZone(caseIdx, afterSid) {
+function makeShelfDropZone(caseIdx, afterSid, position) {
   const dz = document.createElement('div');
   dz.className = 'drop-zone';
+  dz.dataset.dzCase = caseIdx;
+  dz.dataset.dzAfter = afterSid || '';
+  dz.dataset.dzPos = position;
   dz.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); dz.classList.add('active'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('active'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault(); e.stopPropagation();
-    dz.classList.remove('active');
-    performDrop(caseIdx, afterSid, false);
-  });
+  dz.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('active'); performDrop(parseInt(dz.dataset.dzCase), dz.dataset.dzAfter||null, false); });
   return dz;
 }
 
-// ---- DRAG ----
+// ---- DRAG & DROP ----
 function onDragStart(e) {
   dragSrcId = this.dataset.seriesId;
   dragSrcCase = parseInt(this.dataset.seriesCase);
@@ -492,18 +481,20 @@ function onDragEnd(e) {
   this.classList.remove('dragging');
   document.querySelectorAll('.series-block').forEach(b => b.classList.remove('drag-over-left','drag-over-right'));
   document.querySelectorAll('.drop-zone').forEach(dz => dz.classList.remove('active'));
-  document.querySelectorAll('.shelf-drop-active').forEach(s => s.classList.remove('shelf-drop-active'));
 }
 
 function onDragOver(e) {
   e.preventDefault(); e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
   if(this.dataset.seriesId === dragSrcId) return;
   const rect = this.getBoundingClientRect();
   this.classList.remove('drag-over-left','drag-over-right');
   this.classList.add(e.clientX < rect.left + rect.width/2 ? 'drag-over-left' : 'drag-over-right');
 }
 
-function onDragLeave(e) { this.classList.remove('drag-over-left','drag-over-right'); }
+function onDragLeave(e) {
+  this.classList.remove('drag-over-left','drag-over-right');
+}
 
 function onDropOnSeries(e) {
   e.preventDefault(); e.stopPropagation();
@@ -513,54 +504,41 @@ function onDropOnSeries(e) {
   this.classList.remove('drag-over-left','drag-over-right');
   const rect = this.getBoundingClientRect();
   const insertAfter = e.clientX >= rect.left + rect.width/2;
-  const afterSid = insertAfter ? targetId : getPrevSiblingId(targetCase, targetId);
-  performDrop(targetCase, afterSid, false);
+  performDrop(targetCase, insertAfter ? targetId : getPrevSiblingId(targetCase, targetId), false);
+}
+
+function onDropOnCase(e, caseIdx) {
+  // Upuść na pusty obszar regału — dorzuć na koniec
+  if(e.target.closest('.series-block') || e.target.closest('.drop-zone')) return;
+  performDrop(caseIdx, null, true);
 }
 
 function getPrevSiblingId(caseIdx, sid) {
   const arr = orderByCases[caseIdx];
-  const idx = arr.findIndex(p=>p.sid===sid);
-  return idx > 0 ? arr[idx-1].sid : null;
-}
-
-// Upuść na pustą półkę — wstaw serię z shelfBreakBefore=true
-// Znajdź pierwszą serię po tej półce i wstaw przed nią z flagą
-function performDropToEmptyShelf(targetCase, targetRow) {
-  if(!dragSrcId) return;
-
-  // Usuń z obecnego regału
-  const srcArr = orderByCases[dragSrcCase];
-  const srcIdx = srcArr.findIndex(p=>p.sid===dragSrcId);
-  if(srcIdx === -1) return;
-  srcArr.splice(srcIdx, 1);
-
-  // Wstaw na koniec docelowego regału z shelfBreakBefore=true
-  // System przy renderowaniu przeskoczy do nowej półki przed tą serią
-  orderByCases[targetCase].push({sid: dragSrcId, shelfBreakBefore: true});
-
-  dragSrcId = null; dragSrcCase = null;
-  renderAll();
-  scheduleSave();
+  const idx = arr.indexOf(sid);
+  return idx > 0 ? arr[idx-1] : null;
 }
 
 function performDrop(targetCase, afterSid, toEnd) {
   if(!dragSrcId) return;
 
+  // Usuń z obecnego regału
   const srcArr = orderByCases[dragSrcCase];
-  const srcIdx = srcArr.findIndex(p=>p.sid===dragSrcId);
+  const srcIdx = srcArr.indexOf(dragSrcId);
   if(srcIdx === -1) return;
-  const [dragged] = srcArr.splice(srcIdx, 1);
-  dragged.shelfBreakBefore = false;
+  srcArr.splice(srcIdx, 1);
 
+  // Wstaw do docelowego regału
   const tgtArr = orderByCases[targetCase];
   if(toEnd || afterSid === null) {
-    tgtArr.push(dragged);
+    tgtArr.push(dragSrcId);
   } else {
-    const afterIdx = tgtArr.findIndex(p=>p.sid===afterSid);
-    tgtArr.splice(afterIdx+1, 0, dragged);
+    const afterIdx = tgtArr.indexOf(afterSid);
+    tgtArr.splice(afterIdx+1, 0, dragSrcId);
   }
 
-  dragSrcId = null; dragSrcCase = null;
+  dragSrcId = null;
+  dragSrcCase = null;
   renderAll();
   scheduleSave();
 }
@@ -574,12 +552,8 @@ function scheduleSave() {
     try {
       const batch = writeBatch(db);
       orderByCases.forEach((arr, caseIdx) => {
-        arr.forEach(({sid, shelfBreakBefore}, idx) => {
-          batch.update(doc(db,'series',sid), {
-            bookcase: caseIdx,
-            order: idx,
-            shelfBreakBefore: shelfBreakBefore || false
-          });
+        arr.forEach((sid, idx) => {
+          batch.update(doc(db,'series',sid), {bookcase: caseIdx, order: idx});
         });
       });
       await batch.commit();
@@ -603,6 +577,7 @@ window.openPopup = function(v, s) {
   document.getElementById('popup-status').textContent = v.read?'Przeczytane':'Nieprzeczytane';
   document.getElementById('popup-status').style.color = v.read?'var(--read)':'var(--text-dim)';
   document.getElementById('popup-pub').textContent = s.publisher||'';
+
   const cover = document.getElementById('popup-cover');
   const coverBg = document.getElementById('popup-cover-bg');
   const coverWrap = document.getElementById('popup-cover-wrap');
@@ -632,5 +607,3 @@ window.setFilter = function(f, btn) {
 
 loadData();
 </script>
-</body>
-</html>
