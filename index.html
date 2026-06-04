@@ -46,6 +46,15 @@
   .stat-l { font-size: 0.8rem; color: var(--text-dim); margin-top: 1px; }
   .version-tag { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--text-faint); padding: 0.25rem 2rem; border-bottom: 1px solid var(--border); letter-spacing: 0.06em; }
 
+  .search-bar { padding: 0.75rem 2rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.75rem; }
+  .search-input { background: var(--bg3); border: 1px solid var(--wood-light); border-radius: 3px; padding: 0.45rem 0.8rem; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; outline: none; transition: border-color 0.15s; width: 280px; }
+  .search-input:focus { border-color: var(--gold-dim); }
+  .search-input::placeholder { color: var(--text-faint); }
+  .search-count { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-dim); }
+  .search-clear { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.25rem; transition: color 0.15s; display: none; }
+  .search-clear:hover { color: var(--text); }
+  .series-block.search-dim { opacity: 0.15; }
+  .series-block.search-match { outline: 2px solid var(--gold); outline-offset: 2px; z-index: 10; position: relative; }
   .filters { padding: 0.75rem 2rem; display: flex; gap: 0.5rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
   .filter-btn {
     font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; padding: 0.3rem 0.7rem;
@@ -192,6 +201,11 @@
 </div>
 
 <div class="version-tag">v1.6</div>
+<div class="search-bar">
+  <input type="text" class="search-input" id="search-input" placeholder="Szukaj serii..." oninput="onSearch(this.value)">
+  <button class="search-clear" id="search-clear" onclick="clearSearch()">×</button>
+  <span class="search-count" id="search-count"></span>
+</div>
 <div class="filters">
   <button class="filter-btn active" onclick="setFilter('all',this)">Wszystkie</button>
   <button class="filter-btn" onclick="setFilter('manga',this)">Manga</button>
@@ -619,6 +633,63 @@ window.setFilter = function(f, btn) {
   btn.classList.add('active');
   renderAll();
 };
+
+// ---- SEARCH ----
+let searchQuery = '';
+
+window.onSearch = function(val) {
+  searchQuery = val.trim().toLowerCase();
+  const clearBtn = document.getElementById('search-clear');
+  clearBtn.style.display = searchQuery ? 'block' : 'none';
+  applySearch();
+};
+
+window.clearSearch = function() {
+  document.getElementById('search-input').value = '';
+  searchQuery = '';
+  document.getElementById('search-clear').style.display = 'none';
+  document.getElementById('search-count').textContent = '';
+  document.querySelectorAll('.series-block').forEach(b => {
+    b.classList.remove('search-match', 'search-dim');
+  });
+};
+
+function applySearch() {
+  if(!searchQuery) {
+    clearSearch();
+    return;
+  }
+
+  const blocks = document.querySelectorAll('.series-block');
+  let matchCount = 0;
+  let firstMatch = null;
+
+  blocks.forEach(block => {
+    const sid = block.dataset.seriesId;
+    const s = allSeries.find(x=>x.id===sid);
+    if(!s) return;
+
+    const haystack = (s.name + ' ' + (s.shortName||'')).toLowerCase();
+    const matches = haystack.includes(searchQuery);
+
+    block.classList.toggle('search-match', matches);
+    block.classList.toggle('search-dim', !matches);
+
+    if(matches) {
+      matchCount++;
+      if(!firstMatch) firstMatch = block;
+    }
+  });
+
+  const count = document.getElementById('search-count');
+  count.textContent = matchCount > 0 ? `${matchCount} wynik${matchCount===1?'':'ów'}` : 'brak wyników';
+  count.style.color = matchCount > 0 ? 'var(--gold)' : 'var(--accent)';
+
+  // Scroll do pierwszego wyniku
+  if(firstMatch) {
+    firstMatch.scrollIntoView({behavior: 'smooth', block: 'center'});
+  }
+}
 
 loadData();
 </script>
