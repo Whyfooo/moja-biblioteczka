@@ -196,6 +196,10 @@
 
   .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
   #status-bar { position: fixed; bottom: 1rem; right: 1.5rem; background: var(--bg2); border: 1px solid var(--wood-light); border-radius: 4px; padding: 0.5rem 1rem; font-size: 0.75rem; color: var(--text-dim); display: none; z-index: 100; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--wood-light); border-radius: 6px; padding: 1.5rem; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
+  .modal h2 { font-family: 'Crimson Pro', serif; font-size: 1.2rem; color: var(--gold); margin-bottom: 1.25rem; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -453,7 +457,8 @@ function renderSeriesTable() {
       <td style="color:var(--text-dim)">${s.publisher||'–'}</td>
       <td><span class="color-swatch" style="background:${s.spineColor}"></span>${s.spineColor}</td>
       <td style="color:var(--text-dim)">${s.order??'–'}</td>
-      <td>
+      <td style="display:flex;gap:0.4rem">
+        <button class="btn" style="font-size:0.65rem;padding:0.2rem 0.6rem" onclick="editSeries('${s.id}')">Edytuj</button>
         <button class="btn btn-danger" style="font-size:0.65rem;padding:0.2rem 0.6rem" onclick="deleteSeries('${s.id}','${s.name.replace(/'/g,"\\'")}')">Usuń</button>
       </td>
     </tr>
@@ -495,7 +500,10 @@ window.renderVolumesTable = () => {
       </td>
       <td>${v.width||'–'}</td>
       <td style="color:var(--text-dim);font-size:0.72rem;max-width:120px;overflow:hidden;text-overflow:ellipsis">${v.coverUrl?'<a href="'+v.coverUrl+'" target="_blank" style="color:var(--gold)">Podgląd</a>':'–'}</td>
-      <td><button class="btn btn-danger" style="font-size:0.65rem;padding:0.2rem 0.6rem" onclick="deleteVolume('${v.id}','${s?.name||''}',${v.volNumber})">Usuń</button></td>
+      <td style="display:flex;gap:0.4rem">
+        <button class="btn" style="font-size:0.65rem;padding:0.2rem 0.6rem" onclick="editVolume('${v.id}')">Edytuj</button>
+        <button class="btn btn-danger" style="font-size:0.65rem;padding:0.2rem 0.6rem" onclick="deleteVolume('${v.id}','${s?.name||''}',${v.volNumber})">Usuń</button>
+      </td>
     </tr>`;
   }).join('');
 };
@@ -611,6 +619,193 @@ window.deleteVolume = async (id, seriesName, num) => {
     await loadVolumes();
   } catch(e) { showStatus('Błąd: '+e.message, false); }
 };
+
+// ---- EDIT SERIES ----
+let editingSeriesId = null;
+
+window.editSeries = (id) => {
+  const s = allSeries.find(x=>x.id===id);
+  if(!s) return;
+  editingSeriesId = id;
+  document.getElementById('es-name').value = s.name || '';
+  document.getElementById('es-short').value = s.shortName || '';
+  document.getElementById('es-type').value = s.type || 'manga';
+  document.getElementById('es-lang').value = s.lang || 'PL';
+  document.getElementById('es-pub').value = s.publisher || '';
+  document.getElementById('es-color').value = s.spineColor || '#4a7a5a';
+  document.getElementById('es-textcolor').value = s.spineTextColor || '#c8f0d8';
+  document.getElementById('es-msg').textContent = '';
+  document.getElementById('edit-series-modal').classList.add('active');
+};
+
+window.closeEditSeries = () => {
+  document.getElementById('edit-series-modal').classList.remove('active');
+  editingSeriesId = null;
+};
+
+window.saveEditSeries = async () => {
+  const msg = document.getElementById('es-msg');
+  if(!editingSeriesId) return;
+  try {
+    await updateDoc(doc(db,'series',editingSeriesId), {
+      name: document.getElementById('es-name').value.trim(),
+      shortName: document.getElementById('es-short').value.trim(),
+      type: document.getElementById('es-type').value,
+      lang: document.getElementById('es-lang').value,
+      publisher: document.getElementById('es-pub').value.trim(),
+      spineColor: document.getElementById('es-color').value,
+      spineTextColor: document.getElementById('es-textcolor').value,
+    });
+    msg.textContent = 'Zapisano!'; msg.className = 'form-msg ok';
+    showStatus('Zaktualizowano serię.');
+    await loadSeries();
+    setTimeout(() => closeEditSeries(), 800);
+  } catch(e) { msg.textContent = 'Błąd: '+e.message; msg.className = 'form-msg err'; }
+};
+
+// ---- EDIT VOLUME ----
+let editingVolumeId = null;
+
+window.editVolume = (id) => {
+  const v = allVolumes.find(x=>x.id===id);
+  if(!v) return;
+  editingVolumeId = id;
+  document.getElementById('ev-num').value = v.volNumber || '';
+  document.getElementById('ev-width').value = v.width || '';
+  document.getElementById('ev-cover').value = v.coverUrl || '';
+  document.getElementById('ev-read').value = v.read ? 'true' : 'false';
+  document.getElementById('ev-msg').textContent = '';
+  // Pokaż podgląd okładki jeśli jest
+  const preview = document.getElementById('ev-cover-preview');
+  const img = document.getElementById('ev-cover-img');
+  if(v.coverUrl) {
+    img.src = v.coverUrl;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+  document.getElementById('edit-volume-modal').classList.add('active');
+};
+
+// Live preview okładki
+document.getElementById('ev-cover').addEventListener('input', function() {
+  const preview = document.getElementById('ev-cover-preview');
+  const img = document.getElementById('ev-cover-img');
+  if(this.value) {
+    img.src = this.value;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+});
+
+window.closeEditVolume = () => {
+  document.getElementById('edit-volume-modal').classList.remove('active');
+  editingVolumeId = null;
+};
+
+window.saveEditVolume = async () => {
+  const msg = document.getElementById('ev-msg');
+  if(!editingVolumeId) return;
+  try {
+    await updateDoc(doc(db,'volumes',editingVolumeId), {
+      volNumber: parseInt(document.getElementById('ev-num').value),
+      width: parseInt(document.getElementById('ev-width').value) || 9,
+      coverUrl: document.getElementById('ev-cover').value.trim(),
+      read: document.getElementById('ev-read').value === 'true',
+    });
+    msg.textContent = 'Zapisano!'; msg.className = 'form-msg ok';
+    showStatus('Zaktualizowano tom.');
+    await loadVolumes();
+    setTimeout(() => closeEditVolume(), 800);
+  } catch(e) { msg.textContent = 'Błąd: '+e.message; msg.className = 'form-msg err'; }
+};
 </script>
+
+<!-- EDIT SERIES MODAL -->
+<div class="modal-overlay" id="edit-series-modal">
+  <div class="modal" style="width:420px;max-width:95vw">
+    <h2>Edytuj serię</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Pełna nazwa</label>
+        <input type="text" id="es-name">
+      </div>
+      <div class="form-group">
+        <label>Skrócona nazwa (grzbiet)</label>
+        <input type="text" id="es-short">
+      </div>
+      <div class="form-group">
+        <label>Typ</label>
+        <select id="es-type">
+          <option value="manga">Manga</option>
+          <option value="light novel">Light novel</option>
+          <option value="manhwa">Manhwa</option>
+          <option value="special">Wydanie specjalne</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Język</label>
+        <select id="es-lang">
+          <option value="PL">PL</option>
+          <option value="EN">EN</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Wydawnictwo</label>
+        <input type="text" id="es-pub">
+      </div>
+      <div class="form-group">
+        <label>Kolor grzbietu</label>
+        <input type="color" id="es-color">
+      </div>
+      <div class="form-group">
+        <label>Kolor tekstu grzbietu</label>
+        <input type="color" id="es-textcolor">
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:1rem">
+      <button class="btn" onclick="closeEditSeries()">Anuluj</button>
+      <button class="btn btn-success" onclick="saveEditSeries()">Zapisz</button>
+      <span class="form-msg" id="es-msg"></span>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT VOLUME MODAL -->
+<div class="modal-overlay" id="edit-volume-modal">
+  <div class="modal" style="width:380px;max-width:95vw">
+    <h2>Edytuj tom</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Numer tomu</label>
+        <input type="number" id="ev-num" min="0">
+      </div>
+      <div class="form-group">
+        <label>Szerokość grzbietu (mm)</label>
+        <input type="number" id="ev-width" min="5" max="40">
+      </div>
+      <div class="form-group span2">
+        <label>URL okładki</label>
+        <input type="url" id="ev-cover" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>Przeczytane?</label>
+        <select id="ev-read">
+          <option value="false">Nie</option>
+          <option value="true">Tak</option>
+        </select>
+      </div>
+    </div>
+    <div id="ev-cover-preview" style="margin-top:0.75rem;display:none">
+      <img id="ev-cover-img" style="max-width:80px;max-height:112px;border-radius:2px;border:1px solid var(--wood-light)">
+    </div>
+    <div class="form-actions" style="margin-top:1rem">
+      <button class="btn" onclick="closeEditVolume()">Anuluj</button>
+      <button class="btn btn-success" onclick="saveEditVolume()">Zapisz</button>
+      <span class="form-msg" id="ev-msg"></span>
+    </div>
+  </div>
+</div>
 </body>
 </html>
