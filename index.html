@@ -166,6 +166,7 @@
   .dot-read { background: var(--read); box-shadow: 0 0 6px rgba(90,154,106,0.5); }
   .dot-unread { background: var(--unread); }
   .popup-pub { font-size: 0.8rem; color: var(--text-faint); margin-top: 0.6rem; font-style: italic; }
+  .popup-note { margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(212,136,90,0.08); border-left: 2px solid var(--accent); border-radius: 0 3px 3px 0; font-size: 0.85rem; color: var(--text-dim); font-style: italic; line-height: 1.4; }
   .popup-arrow { position: fixed; top: 50%; transform: translateY(-50%); background: rgba(20,14,8,0.85); border: 1px solid var(--wood-light); border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); font-size: 1.1rem; transition: all 0.15s; z-index: 1100; user-select: none; box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
   .popup-arrow:hover { background: rgba(0,0,0,0.95); border-color: var(--gold); color: var(--gold); }
   .popup-arrow.disabled { opacity: 0.25; cursor: default; pointer-events: none; }
@@ -248,6 +249,7 @@
       <div class="popup-tags" id="popup-tags"></div>
       <div class="popup-row"><div class="status-dot" id="popup-dot"></div><span id="popup-status"></span></div>
       <div class="popup-pub" id="popup-pub"></div>
+      <div class="popup-note" id="popup-note" style="display:none"></div>
       <div class="popup-progress" id="popup-progress" style="display:none">
         <div class="popup-progress-label">
           <span>Postęp serii</span>
@@ -629,6 +631,14 @@ window.openPopup = function(v, s) {
   document.getElementById('popup-status').textContent = v.read?'Przeczytane':'Nieprzeczytane';
   document.getElementById('popup-status').style.color = v.read?'var(--read)':'var(--text-dim)';
   document.getElementById('popup-pub').textContent = s.publisher||'';
+
+  const noteEl = document.getElementById('popup-note');
+  if(v.note && v.note.trim()) {
+    noteEl.textContent = '📝 ' + v.note.trim();
+    noteEl.style.display = 'block';
+  } else {
+    noteEl.style.display = 'none';
+  }
 
   // Pasek postępu serii
   const seriesVols = allVolumes.filter(v=>v.seriesId===s.id);

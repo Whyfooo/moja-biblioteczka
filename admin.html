@@ -674,6 +674,7 @@ window.editVolume = (id) => {
   document.getElementById('ev-width').value = v.width || '';
   document.getElementById('ev-cover').value = v.coverUrl || '';
   document.getElementById('ev-read').value = v.read ? 'true' : 'false';
+  document.getElementById('ev-note').value = v.note || '';
   document.getElementById('ev-msg').textContent = '';
   // Pokaż podgląd okładki jeśli jest
   const preview = document.getElementById('ev-cover-preview');
@@ -713,6 +714,7 @@ window.saveEditVolume = async () => {
       width: parseInt(document.getElementById('ev-width').value) || 9,
       coverUrl: document.getElementById('ev-cover').value.trim(),
       read: document.getElementById('ev-read').value === 'true',
+      note: document.getElementById('ev-note').value.trim(),
     });
     msg.textContent = 'Zapisano!'; msg.className = 'form-msg ok';
     showStatus('Zaktualizowano tom.');
@@ -795,6 +797,10 @@ window.saveEditVolume = async () => {
           <option value="false">Nie</option>
           <option value="true">Tak</option>
         </select>
+      </div>
+      <div class="form-group span2">
+        <label>Notatka (opcjonalnie)</label>
+        <input type="text" id="ev-note" placeholder="np. pożyczony Kamilowi, dropnięty...">
       </div>
     </div>
     <div id="ev-cover-preview" style="margin-top:0.75rem;display:none">
