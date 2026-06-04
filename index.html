@@ -108,10 +108,10 @@
 
   /* DROP ZONE między seriami */
   .drop-zone {
-    width: 6px; min-height: 130px; flex-shrink: 0; border-radius: 2px;
-    transition: all 0.15s; opacity: 0;
+    width: 0px; min-height: 130px; flex-shrink: 0; border-radius: 2px;
+    transition: width 0.15s; opacity: 0; overflow: hidden;
   }
-  .drop-zone.active { opacity: 1; background: rgba(212,136,90,0.25); width: 12px; }
+  .drop-zone.active { opacity: 1; background: rgba(212,136,90,0.25); width: 8px; }
 
   /* EDIT BAR */
   #edit-bar {
