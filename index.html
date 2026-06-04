@@ -166,6 +166,11 @@
   .dot-read { background: var(--read); box-shadow: 0 0 6px rgba(90,154,106,0.5); }
   .dot-unread { background: var(--unread); }
   .popup-pub { font-size: 0.8rem; color: var(--text-faint); margin-top: 0.6rem; font-style: italic; }
+  .popup-arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); font-size: 1rem; transition: all 0.15s; z-index: 20; user-select: none; }
+  .popup-arrow:hover { background: rgba(0,0,0,0.8); border-color: var(--gold); color: var(--gold); }
+  .popup-arrow.disabled { opacity: 0.2; cursor: default; pointer-events: none; }
+  .popup-arrow-left { left: -18px; }
+  .popup-arrow-right { right: -18px; }
   .popup-progress { margin-top: 0.75rem; }
   .popup-progress-label { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--text-dim); margin-bottom: 4px; display: flex; justify-content: space-between; }
   .popup-progress-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
@@ -229,8 +234,10 @@
 
 <!-- POPUP -->
 <div class="popup-overlay" id="popup-overlay" onclick="if(event.target===this)closePopup()">
-  <div class="popup">
+  <div class="popup" style="position:relative">
     <button class="popup-close" onclick="closePopup()">×</button>
+    <button class="popup-arrow popup-arrow-left" id="popup-prev" onclick="navigatePopup(-1)">&#8592;</button>
+    <button class="popup-arrow popup-arrow-right" id="popup-next" onclick="navigatePopup(1)">&#8594;</button>
     <div class="popup-cover-wrap" id="popup-cover-wrap">
       <div class="popup-cover-bg" id="popup-cover-bg"></div>
       <div class="popup-cover" id="popup-cover"></div>
@@ -297,6 +304,7 @@ let allVolumes = [];
 // orderByCases[c] = tablica ID serii przypisanych do regału c (0-indexed)
 let orderByCases = [[], [], []];
 let currentFilter = 'all';
+let popupCurrentVolId = null;
 let isAdmin = false;
 let dragSrcId = null;
 let dragSrcCase = null;
@@ -654,9 +662,43 @@ window.openPopup = function(v, s) {
     cover.innerHTML = `<div style="font-size:9px;text-align:center;line-height:1.5">${s.name}<br><br>Tom ${v.volNumber}</div>`;
     coverBg.style.backgroundImage = '';
   }
+  popupCurrentVolId = v.id;
+  updatePopupArrows(v, s);
   document.getElementById('popup-overlay').classList.add('active');
 };
-window.closePopup = () => document.getElementById('popup-overlay').classList.remove('active');
+
+function updatePopupArrows(v, s) {
+  const seriesVols = allVolumes.filter(x=>x.seriesId===s.id).sort((a,b)=>a.volNumber-b.volNumber);
+  const idx = seriesVols.findIndex(x=>x.id===v.id);
+  const prevBtn = document.getElementById('popup-prev');
+  const nextBtn = document.getElementById('popup-next');
+  prevBtn.classList.toggle('disabled', idx <= 0);
+  nextBtn.classList.toggle('disabled', idx >= seriesVols.length-1);
+}
+
+window.navigatePopup = function(dir) {
+  if(!popupCurrentVolId) return;
+  const v = allVolumes.find(x=>x.id===popupCurrentVolId);
+  if(!v) return;
+  const s = allSeries.find(x=>x.id===v.seriesId);
+  if(!s) return;
+  const seriesVols = allVolumes.filter(x=>x.seriesId===s.id).sort((a,b)=>a.volNumber-b.volNumber);
+  const idx = seriesVols.findIndex(x=>x.id===popupCurrentVolId);
+  const next = seriesVols[idx+dir];
+  if(next) openPopup(next, s);
+};
+window.closePopup = () => {
+  document.getElementById('popup-overlay').classList.remove('active');
+  popupCurrentVolId = null;
+};
+
+// Klawiatura: strzałki i Escape
+document.addEventListener('keydown', e => {
+  if(!document.getElementById('popup-overlay').classList.contains('active')) return;
+  if(e.key === 'ArrowLeft') navigatePopup(-1);
+  else if(e.key === 'ArrowRight') navigatePopup(1);
+  else if(e.key === 'Escape') closePopup();
+});
 
 // ---- FILTERS ----
 window.setFilter = function(f, btn) {
