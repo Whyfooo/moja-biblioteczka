@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statystyki – Biblioteczka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0c09; --bg2: #1a1410; --bg3: #241c14;
+    --wood-light: #5c3d22; --gold: #c8a96e; --gold-dim: #7a6040;
+    --text: #e8d4b8; --text-dim: #9a7a5a; --text-faint: #5a4a38;
+    --accent: #d4885a; --read: #5a9a6a;
+    --border: rgba(200,169,110,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Crimson Pro', serif; min-height: 100vh; }
+
+  header { padding: 1.5rem 2rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .header-title { font-size: 1.8rem; font-weight: 600; color: var(--gold); }
+  .btn { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; padding: 0.4rem 0.9rem; border-radius: 3px; cursor: pointer; transition: all 0.15s; border: 1px solid var(--gold-dim); background: transparent; color: var(--gold); letter-spacing: 0.05em; text-decoration: none; display: inline-block; }
+  .btn:hover { background: rgba(200,169,110,0.08); border-color: var(--gold); }
+
+  main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+
+  /* TOP ROW */
+  .top-row { display: grid; grid-template-columns: 280px 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 1.5rem; }
+  .card-title { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1rem; }
+
+  /* DONUT */
+  .donut-wrap { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+  .donut-svg { width: 160px; height: 160px; }
+  .donut-center { font-family: 'JetBrains Mono', monospace; }
+  .donut-pct { font-size: 1.8rem; font-weight: 500; fill: var(--gold); }
+  .donut-sub { font-size: 0.65rem; fill: var(--text-dim); }
+  .donut-legend { display: flex; gap: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
+
+  /* PIE CHARTS */
+  .pie-row { display: flex; flex-direction: column; gap: 0.75rem; }
+  .pie-item { display: flex; align-items: center; gap: 0.75rem; }
+  .pie-label { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-dim); width: 100px; flex-shrink: 0; }
+  .pie-bar-wrap { flex: 1; height: 10px; background: var(--bg3); border-radius: 5px; overflow: hidden; }
+  .pie-bar { height: 100%; border-radius: 5px; transition: width 0.6s ease; }
+  .pie-count { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-dim); width: 40px; text-align: right; flex-shrink: 0; }
+
+  /* SERIES PROGRESS */
+  .progress-section { margin-top: 0; }
+  .progress-controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  .sort-btn { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; padding: 0.25rem 0.6rem; border-radius: 2px; border: 1px solid var(--text-faint); background: transparent; color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+  .sort-btn.active, .sort-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .search-small { background: var(--bg3); border: 1px solid var(--wood-light); border-radius: 3px; padding: 0.25rem 0.6rem; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; outline: none; width: 180px; margin-left: auto; }
+  .search-small::placeholder { color: var(--text-faint); }
+
+  .series-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 520px; overflow-y: auto; padding-right: 4px; }
+  .series-list::-webkit-scrollbar { width: 4px; }
+  .series-list::-webkit-scrollbar-track { background: var(--bg3); }
+  .series-list::-webkit-scrollbar-thumb { background: var(--wood-light); border-radius: 2px; }
+
+  .series-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0.6rem; border-radius: 3px; transition: background 0.1s; }
+  .series-row:hover { background: rgba(200,169,110,0.04); }
+  .series-color { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .series-name { font-size: 0.9rem; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .series-bar-wrap { width: 160px; height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+  .series-bar { height: 100%; border-radius: 4px; background: var(--read); transition: width 0.5s ease; }
+  .series-bar.full { background: var(--gold); }
+  .series-frac { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--text-dim); width: 52px; text-align: right; flex-shrink: 0; }
+  .series-pct { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--text-faint); width: 36px; text-align: right; flex-shrink: 0; }
+
+  #loading { text-align: center; padding: 4rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+
+  @media (max-width: 900px) {
+    .top-row { grid-template-columns: 1fr 1fr; }
+    .top-row > :first-child { grid-column: span 2; }
+  }
+  @media (max-width: 600px) {
+    .top-row { grid-template-columns: 1fr; }
+    .top-row > :first-child { grid-column: span 1; }
+    main { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">Statystyki</div>
+  <a class="btn" href="index.html">← Biblioteczka</a>
+</header>
+
+<main>
+  <div id="loading">Ładowanie danych...</div>
+  <div id="content" style="display:none">
+
+    <div class="top-row">
+      <!-- DONUT -->
+      <div class="card">
+        <div class="card-title">Postęp czytania</div>
+        <div class="donut-wrap">
+          <svg class="donut-svg" viewBox="0 0 160 160">
+            <circle cx="80" cy="80" r="60" fill="none" stroke="#241c14" stroke-width="22"/>
+            <circle cx="80" cy="80" r="60" fill="none" stroke="#5a9a6a" stroke-width="22"
+              stroke-dasharray="377" stroke-dashoffset="377"
+              stroke-linecap="round" transform="rotate(-90 80 80)"
+              id="donut-arc" style="transition: stroke-dashoffset 1s ease"/>
+            <text x="80" y="74" text-anchor="middle" class="donut-center">
+              <tspan class="donut-pct" id="donut-pct">0%</tspan>
+            </text>
+            <text x="80" y="94" text-anchor="middle" class="donut-center">
+              <tspan class="donut-sub" id="donut-sub">0 / 0 tomów</tspan>
+            </text>
+          </svg>
+          <div class="donut-legend">
+            <span><span class="legend-dot" style="background:#5a9a6a"></span>Przeczytane</span>
+            <span><span class="legend-dot" style="background:#3d2b1a"></span>Nieprzeczytane</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TYP -->
+      <div class="card">
+        <div class="card-title">Podział wg typu</div>
+        <div class="pie-row" id="type-bars"></div>
+      </div>
+
+      <!-- JĘZYK -->
+      <div class="card">
+        <div class="card-title">Podział wg języka</div>
+        <div class="pie-row" id="lang-bars"></div>
+      </div>
+    </div>
+
+    <!-- SERIE -->
+    <div class="card progress-section">
+      <div class="card-title">Postęp czytania per seria</div>
+      <div class="progress-controls">
+        <button class="sort-btn active" onclick="sortSeries('alpha', this)">A–Z</button>
+        <button class="sort-btn" onclick="sortSeries('progress-asc', this)">Najmniej przeczytane</button>
+        <button class="sort-btn" onclick="sortSeries('progress-desc', this)">Najbardziej przeczytane</button>
+        <button class="sort-btn" onclick="sortSeries('size', this)">Największe</button>
+        <input type="text" class="search-small" id="series-search" placeholder="Filtruj serie..." oninput="filterSeries(this.value)">
+      </div>
+      <div class="series-list" id="series-list"></div>
+    </div>
+
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAae6a_mICUHIFBPecohVCVXWOm0xhZ9H0",
+  authDomain: "moja-biblioteczka-baa77.firebaseapp.com",
+  projectId: "moja-biblioteczka-baa77",
+  storageBucket: "moja-biblioteczka-baa77.firebasestorage.app",
+  messagingSenderId: "666967917363",
+  appId: "1:666967917363:web:4ff51bf718fa2820b83446"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let allSeries = [], allVolumes = [];
+let currentSort = 'alpha';
+let currentFilter = '';
+
+async function loadData() {
+  const [ss, vs] = await Promise.all([
+    getDocs(query(collection(db,'series'), orderBy('order','asc'))),
+    getDocs(collection(db,'volumes'))
+  ]);
+  allSeries = ss.docs.map(d=>({id:d.id,...d.data()}));
+  allVolumes = vs.docs.map(d=>({id:d.id,...d.data()}));
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+  renderAll();
+}
+
+function renderAll() {
+  renderDonut();
+  renderTypeBars();
+  renderLangBars();
+  renderSeriesList();
+}
+
+function renderDonut() {
+  const total = allVolumes.length;
+  const read = allVolumes.filter(v=>v.read).length;
+  const pct = total ? Math.round(read/total*100) : 0;
+  const circumference = 2 * Math.PI * 60;
+  const offset = circumference - (pct/100) * circumference;
+  document.getElementById('donut-pct').textContent = pct + '%';
+  document.getElementById('donut-sub').textContent = read + ' / ' + total + ' tomów';
+  setTimeout(() => {
+    document.getElementById('donut-arc').style.strokeDashoffset = offset;
+  }, 100);
+}
+
+function renderTypeBars() {
+  const types = ['manga','light novel','manhwa','special'];
+  const colors = {'manga':'#5a9a6a','light novel':'#6a7aaa','manhwa':'#aa6a6a','special':'#aa9a4a'};
+  const labels = {'manga':'Manga','light novel':'Light novel','manhwa':'Manhwa','special':'Specjalne'};
+  const total = allVolumes.length;
+  const container = document.getElementById('type-bars');
+  container.innerHTML = '';
+
+  // Count volumes per type
+  const counts = {};
+  allVolumes.forEach(v => {
+    const s = allSeries.find(x=>x.id===v.seriesId);
+    if(!s) return;
+    counts[s.type] = (counts[s.type]||0) + 1;
+  });
+
+  types.forEach(t => {
+    const n = counts[t]||0;
+    if(!n) return;
+    const pct = total ? Math.round(n/total*100) : 0;
+    const div = document.createElement('div');
+    div.className = 'pie-item';
+    div.innerHTML = `
+      <div class="pie-label">${labels[t]}</div>
+      <div class="pie-bar-wrap"><div class="pie-bar" style="width:0%;background:${colors[t]}" data-w="${pct}"></div></div>
+      <div class="pie-count">${n}</div>`;
+    container.appendChild(div);
+  });
+  setTimeout(() => {
+    container.querySelectorAll('.pie-bar').forEach(b => b.style.width = b.dataset.w + '%');
+  }, 100);
+}
+
+function renderLangBars() {
+  const container = document.getElementById('lang-bars');
+  container.innerHTML = '';
+  const total = allVolumes.length;
+  const counts = {};
+  allVolumes.forEach(v => {
+    const s = allSeries.find(x=>x.id===v.seriesId);
+    if(!s) return;
+    counts[s.lang] = (counts[s.lang]||0) + 1;
+  });
+  const colors = {'PL':'#c8a96e','EN':'#6a9aaa'};
+  Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([lang, n]) => {
+    const pct = total ? Math.round(n/total*100) : 0;
+    const div = document.createElement('div');
+    div.className = 'pie-item';
+    div.innerHTML = `
+      <div class="pie-label">${lang}</div>
+      <div class="pie-bar-wrap"><div class="pie-bar" style="width:0%;background:${colors[lang]||'#888'}" data-w="${pct}"></div></div>
+      <div class="pie-count">${n}</div>`;
+    container.appendChild(div);
+  });
+  setTimeout(() => {
+    container.querySelectorAll('.pie-bar').forEach(b => b.style.width = b.dataset.w + '%');
+  }, 100);
+}
+
+function getSeriesStats() {
+  return allSeries.map(s => {
+    const vols = allVolumes.filter(v=>v.seriesId===s.id);
+    const read = vols.filter(v=>v.read).length;
+    return {...s, total: vols.length, read, pct: vols.length ? Math.round(read/vols.length*100) : 0};
+  }).filter(s => s.total > 0);
+}
+
+function renderSeriesList() {
+  let series = getSeriesStats();
+
+  if(currentFilter) {
+    const q = currentFilter.toLowerCase();
+    series = series.filter(s => (s.name+' '+(s.shortName||'')).toLowerCase().includes(q));
+  }
+
+  if(currentSort === 'alpha') series.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(currentSort === 'progress-asc') series.sort((a,b)=>a.pct-b.pct);
+  else if(currentSort === 'progress-desc') series.sort((a,b)=>b.pct-a.pct);
+  else if(currentSort === 'size') series.sort((a,b)=>b.total-a.total);
+
+  const list = document.getElementById('series-list');
+  list.innerHTML = '';
+  series.forEach(s => {
+    const isFull = s.pct === 100;
+    const div = document.createElement('div');
+    div.className = 'series-row';
+    div.innerHTML = `
+      <div class="series-color" style="background:${s.spineColor}"></div>
+      <div class="series-name" title="${s.name}">${s.name}</div>
+      <div class="series-bar-wrap"><div class="series-bar${isFull?' full':''}" style="width:0%" data-w="${s.pct}"></div></div>
+      <div class="series-frac">${s.read}/${s.total}</div>
+      <div class="series-pct">${s.pct}%</div>`;
+    list.appendChild(div);
+  });
+  setTimeout(() => {
+    list.querySelectorAll('.series-bar').forEach(b => b.style.width = b.dataset.w + '%');
+  }, 50);
+}
+
+window.sortSeries = (type, btn) => {
+  currentSort = type;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSeriesList();
+};
+
+window.filterSeries = (val) => {
+  currentFilter = val;
+  renderSeriesList();
+};
+
+loadData();
+</script>
+</body>
+</html>

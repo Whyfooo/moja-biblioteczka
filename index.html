@@ -166,6 +166,11 @@
   .dot-read { background: var(--read); box-shadow: 0 0 6px rgba(90,154,106,0.5); }
   .dot-unread { background: var(--unread); }
   .popup-pub { font-size: 0.8rem; color: var(--text-faint); margin-top: 0.6rem; font-style: italic; }
+  .popup-progress { margin-top: 0.75rem; }
+  .popup-progress-label { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--text-dim); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .popup-progress-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .popup-progress-fill { height: 100%; background: var(--read); border-radius: 3px; transition: width 0.4s ease; }
+  .popup-progress-fill.full { background: var(--gold); }
 
   /* LOGIN MODAL */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; }
@@ -183,6 +188,7 @@
 <header>
   <div class="header-title">Biblioteczka <span id="header-count">ładowanie...</span></div>
   <div class="header-actions">
+    <a class="btn" href="stats.html" style="text-decoration:none">Statystyki</a>
     <button class="btn" id="btn-login" onclick="showLogin()">Zaloguj</button>
     <button class="btn btn-accent" id="btn-admin" style="display:none" onclick="window.location.href='admin.html'">Panel admina</button>
     <button class="btn" id="btn-logout" style="display:none" onclick="doLogout()">Wyloguj</button>
@@ -235,6 +241,15 @@
       <div class="popup-tags" id="popup-tags"></div>
       <div class="popup-row"><div class="status-dot" id="popup-dot"></div><span id="popup-status"></span></div>
       <div class="popup-pub" id="popup-pub"></div>
+      <div class="popup-progress" id="popup-progress" style="display:none">
+        <div class="popup-progress-label">
+          <span>Postęp serii</span>
+          <span id="popup-progress-frac"></span>
+        </div>
+        <div class="popup-progress-bar">
+          <div class="popup-progress-fill" id="popup-progress-fill"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -606,6 +621,23 @@ window.openPopup = function(v, s) {
   document.getElementById('popup-status').textContent = v.read?'Przeczytane':'Nieprzeczytane';
   document.getElementById('popup-status').style.color = v.read?'var(--read)':'var(--text-dim)';
   document.getElementById('popup-pub').textContent = s.publisher||'';
+
+  // Pasek postępu serii
+  const seriesVols = allVolumes.filter(v=>v.seriesId===s.id);
+  const seriesRead = seriesVols.filter(v=>v.read).length;
+  const seriesTotal = seriesVols.length;
+  const progress = document.getElementById('popup-progress');
+  if(seriesTotal > 0) {
+    const pct = Math.round(seriesRead/seriesTotal*100);
+    document.getElementById('popup-progress-frac').textContent = seriesRead+'/'+seriesTotal+' ('+pct+'%)';
+    const fill = document.getElementById('popup-progress-fill');
+    fill.style.width = '0%';
+    fill.className = 'popup-progress-fill' + (pct===100?' full':'');
+    progress.style.display = 'block';
+    setTimeout(() => { fill.style.width = pct+'%'; }, 50);
+  } else {
+    progress.style.display = 'none';
+  }
 
   const cover = document.getElementById('popup-cover');
   const coverBg = document.getElementById('popup-cover-bg');
